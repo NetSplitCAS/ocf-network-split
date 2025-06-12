@@ -47,7 +47,7 @@ static inline bool load_admit_allow(struct ocf_request *req)
     static uint32_t backend_requests = 0;
 
     uint32_t split_ratio = monitor_query_load_admit();
-    const uint32_t window_size = 100;
+    const uint32_t window_size = 10000;
     const uint32_t max_pattern_size = 10;
     bool send_to_backend;
     uint32_t expected_cache_ratio;

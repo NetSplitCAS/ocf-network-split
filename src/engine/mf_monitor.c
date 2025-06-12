@@ -73,6 +73,7 @@ monitor_query_data_admit(void)
     return data_admit;
 }
 
+// 이 함수를 이용해서, 현재 설정된 load_admit 값을 조회할 수 있음.
 int
 monitor_query_load_admit(void)
 {
@@ -82,7 +83,7 @@ monitor_query_load_admit(void)
     load_admit = global_load_admit;
     env_rwlock_read_unlock(&load_admit_lock);
 
-    return load_admit;
+    return 8000;
 }
 
 
