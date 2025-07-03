@@ -10,9 +10,6 @@ netCAS monitor module
 #include <linux/kernel.h>
 #include <linux/atomic.h>
 
-#define OCF_ENGINE_DEBUG_IO_NAME "netCAS_monitor"
-#include "engine_debug.h"
-
 // Constants
 const uint64_t REQUEST_BLOCK_SIZE = 64;
 static const char *CAS_STAT_FILE = "/sys/block/cas1-1/stat";
@@ -25,13 +22,6 @@ static bool opencas_stats_initialized = false;
 // Static variables for disk stats
 static uint64_t prev_reads = 0, prev_writes = 0;
 static bool disk_stats_initialized = false;
-
-// RDMA metrics structure
-struct rdma_metrics
-{
-    uint64_t latency;
-    uint64_t throughput;
-};
 
 uint64_t measure_iops_using_opencas_stats(struct ocf_request *req, uint64_t elapsed_time /* ms */)
 {
@@ -69,7 +59,7 @@ uint64_t measure_iops_using_opencas_stats(struct ocf_request *req, uint64_t elap
     return curr_IOPS;
 }
 
-uint64_t measure_iops_using_disk_stats(struct ocf_request *req, uint64_t elapsed_time /* ms */)
+uint64_t measure_iops_using_disk_stats(uint64_t elapsed_time /* ms */)
 {
     struct file *cas_file;
     uint64_t reads = 0, writes = 0;
@@ -87,7 +77,7 @@ uint64_t measure_iops_using_disk_stats(struct ocf_request *req, uint64_t elapsed
     cas_file = filp_open(CAS_STAT_FILE, O_RDONLY, 0);
     if (IS_ERR(cas_file))
     {
-        OCF_DEBUG_RQ(req, "disk_stats - Failed to open CAS file: %ld", PTR_ERR(cas_file));
+        printk(KERN_ERR "disk_stats - Failed to open CAS file: %ld", PTR_ERR(cas_file));
         set_fs(old_fs);
         return 0;
     }
@@ -97,7 +87,7 @@ uint64_t measure_iops_using_disk_stats(struct ocf_request *req, uint64_t elapsed
     read_bytes = kernel_read(cas_file, cas_buf, sizeof(cas_buf) - 1, &cas_file->f_pos);
     if (read_bytes <= 0)
     {
-        OCF_DEBUG_RQ(req, "disk_stats - Failed to read CAS file: %d", read_bytes);
+        printk(KERN_ERR "disk_stats - Failed to read CAS file: %d", read_bytes);
         filp_close(cas_file, NULL);
         set_fs(old_fs);
         return 0;
@@ -160,7 +150,7 @@ uint64_t measure_iops_using_disk_stats(struct ocf_request *req, uint64_t elapsed
     return iops;
 }
 
-struct rdma_metrics read_rdma_metrics(struct ocf_request *req)
+struct rdma_metrics read_rdma_metrics(void)
 {
     struct file *latency_file, *throughput_file;
     char buffer[32];
@@ -183,14 +173,14 @@ struct rdma_metrics read_rdma_metrics(struct ocf_request *req)
             buffer[read_bytes] = '\0';
             if (kstrtoull(buffer, 10, &metrics.latency))
             {
-                OCF_DEBUG_RQ(req, "Failed to parse RDMA latency");
+                printk(KERN_ERR "Failed to parse RDMA latency");
             }
         }
         filp_close(latency_file, NULL);
     }
     else
     {
-        OCF_DEBUG_RQ(req, "Failed to open RDMA latency file: %ld", PTR_ERR(latency_file));
+        printk(KERN_ERR "Failed to open RDMA latency file: %ld", PTR_ERR(latency_file));
     }
 
     /* Read throughput */
@@ -204,14 +194,14 @@ struct rdma_metrics read_rdma_metrics(struct ocf_request *req)
             buffer[read_bytes] = '\0';
             if (kstrtoull(buffer, 10, &metrics.throughput))
             {
-                OCF_DEBUG_RQ(req, "Failed to parse RDMA throughput");
+                printk(KERN_ERR "Failed to parse RDMA throughput");
             }
         }
         filp_close(throughput_file, NULL);
     }
     else
     {
-        OCF_DEBUG_RQ(req, "Failed to open RDMA throughput file: %ld", PTR_ERR(throughput_file));
+        printk(KERN_ERR "Failed to open RDMA throughput file: %ld", PTR_ERR(throughput_file));
     }
 
     /* Restore fs */
@@ -222,23 +212,44 @@ struct rdma_metrics read_rdma_metrics(struct ocf_request *req)
     return metrics;
 }
 
-struct rdma_metrics measure_performance(struct ocf_request *req, uint64_t elapsed_time)
-{
-    // TODO: Do we need to measure IOPS?
-    // IOPS variables
-    uint64_t curr_opencas_IOPS;
-    uint64_t curr_disk_IOPS;
+// struct performance_metrics measure_performance(struct ocf_request *req, uint64_t elapsed_time)
+// {
+//     struct performance_metrics metrics = {0, 0, 0, 0};
 
-    // 1. Measure IOPS
-    curr_opencas_IOPS = measure_iops_using_opencas_stats(req, elapsed_time);
-    curr_disk_IOPS = measure_iops_using_disk_stats(req, elapsed_time);
+//     // 1. Measure IOPS
+//     metrics.opencas_iops = measure_iops_using_opencas_stats(req, elapsed_time);
+//     metrics.disk_iops = measure_iops_using_disk_stats(elapsed_time);
+
+//     // 2. Read RDMA metrics
+//     struct rdma_metrics rdma_metrics = read_rdma_metrics();
+//     metrics.rdma_latency = rdma_metrics.latency;
+//     metrics.rdma_throughput = rdma_metrics.throughput;
+
+//     // Log results
+//     // printk(KERN_INFO "Performance metrics - RDMA: %llu/%llu, IOPS: %llu/%llu",
+//     //        metrics.rdma_latency, metrics.rdma_throughput,
+//     //        metrics.opencas_iops, metrics.disk_iops);
+
+//     return metrics;
+// }
+
+struct performance_metrics measure_performance()
+{
+    // struct performance_metrics metrics = {0, 0, 0, 0};
+
+    // // 1. Measure IOPS
+    // metrics.opencas_iops = measure_iops_using_opencas_stats(req, elapsed_time);
+    // metrics.disk_iops = measure_iops_using_disk_stats(elapsed_time);
 
     // 2. Read RDMA metrics
-    struct rdma_metrics rdma_metrics = read_rdma_metrics(req);
+    struct rdma_metrics rdma_metrics = read_rdma_metrics();
+    // metrics.rdma_latency = rdma_metrics.latency;
+    // metrics.rdma_throughput = rdma_metrics.throughput;
 
     // Log results
-    // OCF_DEBUG_RQ(req, "curr_opencas_IOPS: %llu, curr_disk_IOPS: %llu",
-    //              curr_opencas_IOPS, curr_disk_IOPS);
+    // printk(KERN_INFO "Performance metrics - RDMA: %llu/%llu, IOPS: %llu/%llu",
+    //        metrics.rdma_latency, metrics.rdma_throughput,
+    //        metrics.opencas_iops, metrics.disk_iops);
 
     return rdma_metrics;
 }
