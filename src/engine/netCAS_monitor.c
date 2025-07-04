@@ -87,7 +87,7 @@ uint64_t measure_iops_using_disk_stats(uint64_t elapsed_time /* ms */)
     read_bytes = kernel_read(cas_file, cas_buf, sizeof(cas_buf) - 1, &cas_file->f_pos);
     if (read_bytes <= 0)
     {
-        printk(KERN_ERR "disk_stats - Failed to read CAS file: %d", read_bytes);
+        printk(KERN_ERR "disk_stats - Failed to read CAS file: %llu", read_bytes);
         filp_close(cas_file, NULL);
         set_fs(old_fs);
         return 0;
@@ -233,7 +233,7 @@ struct rdma_metrics read_rdma_metrics(void)
 //     return metrics;
 // }
 
-struct performance_metrics measure_performance()
+struct rdma_metrics measure_performance()
 {
     // struct performance_metrics metrics = {0, 0, 0, 0};
 
@@ -242,7 +242,7 @@ struct performance_metrics measure_performance()
     // metrics.disk_iops = measure_iops_using_disk_stats(elapsed_time);
 
     // 2. Read RDMA metrics
-    struct rdma_metrics rdma_metrics = read_rdma_metrics();
+    struct rdma_metrics current_rdma_metrics = read_rdma_metrics();
     // metrics.rdma_latency = rdma_metrics.latency;
     // metrics.rdma_throughput = rdma_metrics.throughput;
 
@@ -251,5 +251,5 @@ struct performance_metrics measure_performance()
     //        metrics.rdma_latency, metrics.rdma_throughput,
     //        metrics.opencas_iops, metrics.disk_iops);
 
-    return rdma_metrics;
+    return current_rdma_metrics;
 }

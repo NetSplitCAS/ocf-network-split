@@ -29,6 +29,6 @@ uint64_t measure_iops_using_opencas_stats(struct ocf_request *req, uint64_t elap
 uint64_t measure_iops_using_disk_stats(uint64_t elapsed_time);
 struct rdma_metrics read_rdma_metrics(void);
 // struct performance_metrics measure_performance(struct ocf_request *req, uint64_t elapsed_time);
-struct performance_metrics measure_performance(void);
+struct rdma_metrics measure_performance(void);
 
 #endif /* __NETCAS_MONITOR_H__ */

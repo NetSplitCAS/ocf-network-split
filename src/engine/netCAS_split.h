@@ -60,7 +60,7 @@ void netcas_set_data_admit(bool data_admit);
  * @param core OCF core handle
  * @return 0 on success, -1 on failure
  */
-uint64_t netcas_mngt_split_monitor_start(ocf_core_t core);
+int netcas_mngt_split_monitor_start(ocf_core_t core);
 
 /**
  * Stop the split ratio monitoring thread.
