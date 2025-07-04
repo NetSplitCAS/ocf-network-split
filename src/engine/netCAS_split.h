@@ -11,9 +11,6 @@
 #include "ocf/ocf.h"
 #include "netCAS_monitor.h"
 
-/* External function declaration */
-extern uint64_t lookup_bandwidth(uint64_t io_depth, uint64_t num_job, uint64_t split_ratio);
-
 /* Constants */
 #define RDMA_WINDOW_SIZE 20
 #define MONITOR_INTERVAL_MS 1000        /* Check every 1 second */

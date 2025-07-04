@@ -18,6 +18,7 @@
 #include "../ocf_core_priv.h"
 #include "netCAS_split.h"
 #include "netCAS_monitor.h"
+#include "../utils/pmem_nvme/pmem_nvme_table.h"
 
 /** Enable kernel verbose logging? */
 static const bool SPLIT_VERBOSE_LOG = true;
@@ -127,16 +128,16 @@ calculate_split_ratio_formula(uint64_t bandwidth_cache_only, uint64_t bandwidth_
  * Based on the algorithm from engine_fast.c
  */
 static uint64_t
-find_best_split_ratio(ocf_core_t core, uint64_t io_depth, uint64_t num_job, uint64_t curr_rdma_throughput, uint64_t drop_permil)
+find_best_split_ratio(ocf_core_t core, uint64_t io_depth, uint64_t numjob, uint64_t curr_rdma_throughput, uint64_t drop_permil)
 {
     uint64_t bandwidth_cache_only;   /* A: IOPS when split ratio is 100% (all to cache) */
     uint64_t bandwidth_backend_only; /* B: IOPS when split ratio is 0% (all to backend) */
     uint64_t calculated_split;       /* Calculated optimal split ratio */
 
     /* Get bandwidth for cache only (split ratio 100%) */
-    bandwidth_cache_only = lookup_bandwidth(io_depth, num_job, 100);
+    bandwidth_cache_only = (uint64_t)lookup_bandwidth(io_depth, numjob, 100);
     /* Get bandwidth for backend only (split ratio 0%) */
-    bandwidth_backend_only = lookup_bandwidth(io_depth, num_job, 0);
+    bandwidth_backend_only = (uint64_t)lookup_bandwidth(io_depth, numjob, 0);
 
     if (max_average_rdma_throughput == 0)
     {
@@ -156,7 +157,7 @@ find_best_split_ratio(ocf_core_t core, uint64_t io_depth, uint64_t num_job, uint
     if (SPLIT_VERBOSE_LOG)
     {
         printk(KERN_ALERT "NETCAS_SPLIT: Optimal split ratio for IO_Depth=%llu, NumJob=%llu is %llu:%llu (cache_iops=%llu, adjusted_backend_iops=%llu)",
-               io_depth, num_job, calculated_split, 100 - calculated_split,
+               io_depth, numjob, calculated_split, 100 - calculated_split,
                bandwidth_cache_only, bandwidth_backend_only);
     }
 
