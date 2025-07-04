@@ -66,7 +66,7 @@ uint64_t measure_iops_using_disk_stats(uint64_t elapsed_time /* ms */)
     uint64_t delta_reads, delta_writes, iops = 0;
     static char cas_buf[1024];
     char *buf_ptr, *token;
-    int count, read_bytes;
+    uint64_t count, read_bytes;
     mm_segment_t old_fs;
 
     /* Prepare for kernel file operations */
@@ -154,7 +154,7 @@ struct rdma_metrics read_rdma_metrics(void)
 {
     struct file *latency_file, *throughput_file;
     char buffer[32];
-    int read_bytes;
+    uint64_t read_bytes;
     mm_segment_t old_fs;
     struct rdma_metrics metrics = {0, 0};
 

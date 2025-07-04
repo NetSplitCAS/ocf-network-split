@@ -12,7 +12,7 @@
 #include "netCAS_monitor.h"
 
 /* External function declaration */
-extern int lookup_bandwidth(int io_depth, int num_job, int split_ratio);
+extern uint64_t lookup_bandwidth(uint64_t io_depth, uint64_t num_job, uint64_t split_ratio);
 
 /* Constants */
 #define RDMA_WINDOW_SIZE 20
@@ -41,7 +41,7 @@ typedef enum
  * Query the current optimal split ratio.
  * @return Current optimal split ratio (0-100)
  */
-int netcas_query_optimal_split_ratio(void);
+uint64_t netcas_query_optimal_split_ratio(void);
 
 /**
  * Query the current data admit switch value.
@@ -60,7 +60,7 @@ void netcas_set_data_admit(bool data_admit);
  * @param core OCF core handle
  * @return 0 on success, -1 on failure
  */
-int netcas_mngt_split_monitor_start(ocf_core_t core);
+uint64_t netcas_mngt_split_monitor_start(ocf_core_t core);
 
 /**
  * Stop the split ratio monitoring thread.
