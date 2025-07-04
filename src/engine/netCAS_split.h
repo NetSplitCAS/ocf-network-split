@@ -31,7 +31,8 @@ typedef enum
     NETCAS_MODE_IDLE = 0,
     NETCAS_MODE_WARMUP = 1,
     NETCAS_MODE_STABLE = 2,
-    NETCAS_MODE_CONGESTION = 3
+    NETCAS_MODE_CONGESTION = 3,
+    NETCAS_MODE_FAILURE = 4
 } netCAS_mode_t;
 
 /* Function declarations */
@@ -41,6 +42,18 @@ typedef enum
  * @return Current optimal split ratio (0-100)
  */
 int netcas_query_optimal_split_ratio(void);
+
+/**
+ * Query the current data admit switch value.
+ * @return Current data admit value (true/false)
+ */
+bool netcas_query_data_admit(void);
+
+/**
+ * Set the data admit switch value.
+ * @param data_admit New data admit value
+ */
+void netcas_set_data_admit(bool data_admit);
 
 /**
  * Start the split ratio monitoring thread.

@@ -25,33 +25,38 @@ static const bool SPLIT_VERBOSE_LOG = true;
 // Test app parameters
 const uint64_t IO_DEPTH = 16;
 const uint64_t NUM_JOBS = 1;
+const bool CACHING_FAILED = false;
 
 // Moving average window for RDMA throughput
 static uint64_t rdma_throughput_window[RDMA_WINDOW_SIZE] = {0};
-static int rdma_window_index = 0;
+static uint64_t rdma_window_index = 0;
 static uint64_t rdma_window_sum = 0;
-static int rdma_window_count = 0;
+static uint64_t rdma_window_count = 0;
 static uint64_t rdma_window_average = 0;
 static uint64_t max_average_rdma_throughput = 0;
 
 // Mode management variables
 static uint64_t last_nonzero_transition_time = 0; // Time when RDMA throughput changed from 0 to non-zero
-static bool in_warmup = false;
-static bool just_initialized = false;
-
-static netCAS_mode_t netCAS_mode = NETCAS_MODE_IDLE;
+static bool netCAS_initialized = false;
+static bool split_ratio_calculated_in_stable = false; // Track if split ratio was calculated in stable mode
 
 /** Optimal split ratio, protected by a global rwlock. */
-static int optimal_split_ratio = 100; // Default 100% to cache
+static uint64_t optimal_split_ratio = 100; // Default 100% to cache
+
+/** `data_admit` switch, protected by a global rwlock. */
+static bool global_data_admit = true;
 
 /** Reader-writer lock to protect optimal_split_ratio. */
 static env_rwlock split_ratio_lock;
+
+/** Reader-writer lock to protect `data_admit`. */
+static env_rwlock data_admit_lock;
 
 /**
  * Set split ratio value with writer lock.
  */
 static void
-split_set_optimal_ratio(int ratio)
+split_set_optimal_ratio(uint64_t ratio)
 {
     env_rwlock_write_lock(&split_ratio_lock);
     optimal_split_ratio = ratio;
@@ -61,9 +66,9 @@ split_set_optimal_ratio(int ratio)
 /**
  * For OCF engine to query the optimal split ratio.
  */
-int netcas_query_optimal_split_ratio(void)
+uint64_t netcas_query_optimal_split_ratio(void)
 {
-    int ratio;
+    uint64_t ratio;
 
     env_rwlock_read_lock(&split_ratio_lock);
     ratio = optimal_split_ratio;
@@ -73,13 +78,37 @@ int netcas_query_optimal_split_ratio(void)
 }
 
 /**
+ * Set data admit value with writer lock.
+ */
+void netcas_set_data_admit(bool data_admit)
+{
+    env_rwlock_write_lock(&data_admit_lock);
+    global_data_admit = data_admit;
+    env_rwlock_write_unlock(&data_admit_lock);
+}
+
+/**
+ * For OCF engine to query the data admit switch value.
+ */
+bool netcas_query_data_admit(void)
+{
+    bool data_admit;
+
+    env_rwlock_read_lock(&data_admit_lock);
+    data_admit = global_data_admit;
+    env_rwlock_read_unlock(&data_admit_lock);
+
+    return data_admit;
+}
+
+/**
  * Calculate split ratio using the formula A/(A+B) * 100.
  * This is the core formula for determining optimal split ratio.
  */
-static int
-calculate_split_ratio_formula(int bandwidth_cache_only, int bandwidth_backend_only)
+static uint64_t
+calculate_split_ratio_formula(uint64_t bandwidth_cache_only, uint64_t bandwidth_backend_only)
 {
-    int calculated_split;
+    uint64_t calculated_split;
 
     /* Calculate optimal split ratio using formula A/(A+B) * 100 */
     calculated_split = (bandwidth_cache_only * 100) / (bandwidth_cache_only + bandwidth_backend_only);
@@ -97,13 +126,12 @@ calculate_split_ratio_formula(int bandwidth_cache_only, int bandwidth_backend_on
  * Function to find the best split ratio for given IO depth and NumJob.
  * Based on the algorithm from engine_fast.c
  */
-static int
-find_best_split_ratio(ocf_core_t core, int io_depth, int num_job, uint64_t curr_rdma_throughput)
+static uint64_t
+find_best_split_ratio(ocf_core_t core, uint64_t io_depth, uint64_t num_job, uint64_t curr_rdma_throughput, uint64_t drop_permil)
 {
-    int bandwidth_cache_only;   /* A: IOPS when split ratio is 100% (all to cache) */
-    int bandwidth_backend_only; /* B: IOPS when split ratio is 0% (all to backend) */
-    int calculated_split;       /* Calculated optimal split ratio */
-    uint64_t drop_permil = 0;
+    uint64_t bandwidth_cache_only;   /* A: IOPS when split ratio is 100% (all to cache) */
+    uint64_t bandwidth_backend_only; /* B: IOPS when split ratio is 0% (all to backend) */
+    uint64_t calculated_split;       /* Calculated optimal split ratio */
 
     /* Get bandwidth for cache only (split ratio 100%) */
     bandwidth_cache_only = lookup_bandwidth(io_depth, num_job, 100);
@@ -112,24 +140,18 @@ find_best_split_ratio(ocf_core_t core, int io_depth, int num_job, uint64_t curr_
 
     if (max_average_rdma_throughput == 0)
     {
-        return;
+        return 100;
     }
-
-    // Calculate how much RDMA throughput is dropped
-    drop_permil = ((max_average_rdma_throughput - rdma_window_average) * 1000) / max_average_rdma_throughput;
 
     // If current RDMA throughput is less than 9% of max_average_rdma_throughput,
     // change netCAS_mode to NETCAS_MODE_Congestion
-    if (drop_permil > CONGESTION_THRESHOLD)
+    if (curr_rdma_throughput > RDMA_THRESHOLD)
     {
-        bandwidth_backend_only = (int)((bandwidth_backend_only * (1000 - drop_permil)) / 1000);
+        bandwidth_backend_only = (uint64_t)((bandwidth_backend_only * (1000 - drop_permil)) / 1000);
     }
 
     /* Calculate optimal split ratio using the formula */
     calculated_split = calculate_split_ratio_formula(bandwidth_cache_only, bandwidth_backend_only);
-
-    /* Store the calculated optimal split ratio in the global variable */
-    split_set_optimal_ratio(calculated_split);
 
     if (SPLIT_VERBOSE_LOG)
     {
@@ -141,15 +163,117 @@ find_best_split_ratio(ocf_core_t core, int io_depth, int num_job, uint64_t curr_
     return calculated_split;
 }
 
+static void init_netCAS(void)
+{
+    // Initialize RDMA throughput window
+    uint64_t i;
+    for (i = 0; i < RDMA_WINDOW_SIZE; ++i)
+        rdma_throughput_window[i] = 0;
+    rdma_window_sum = 0;
+    rdma_window_index = 0;
+    rdma_window_count = 0;
+    rdma_window_average = 0;
+    max_average_rdma_throughput = 0;
+
+    // Initialize data admit
+    netcas_set_data_admit(true);
+
+    // Initialize split ratio
+    split_set_optimal_ratio(100);
+
+    // Initialize netCAS variables
+    last_nonzero_transition_time = 0;
+    netCAS_initialized = true;
+    split_ratio_calculated_in_stable = false;
+}
+
+static netCAS_mode_t determine_netcas_mode(uint64_t curr_rdma_throughput, uint64_t drop_permil)
+{
+    netCAS_mode_t netCAS_mode;
+    uint64_t curr_time = env_get_tick_count();
+
+    // No Active RDMA traffic, set netCAS_mode to IDLE
+    if (curr_rdma_throughput <= RDMA_THRESHOLD)
+    {
+        netCAS_mode = NETCAS_MODE_IDLE;
+        last_nonzero_transition_time = 0;
+    }
+    // Active RDMA traffic, determine the mode
+    else
+    {
+        // First time active RDMA traffic, set netCAS_mode to WARMUP
+        if (netCAS_mode == NETCAS_MODE_IDLE)
+        {
+            // Idle -> Warmup
+            netCAS_mode = NETCAS_MODE_WARMUP;
+            last_nonzero_transition_time = curr_time;
+            netCAS_initialized = false;
+        }
+        else if (netCAS_mode == NETCAS_MODE_WARMUP && curr_time - last_nonzero_transition_time >= WARMUP_PERIOD_NS)
+        {
+            // Still in warmup, return
+            ;
+        }
+        else if (netCAS_mode == NETCAS_MODE_WARMUP)
+        {
+            // Warmup -> Stable
+            netCAS_mode = NETCAS_MODE_STABLE;
+            split_ratio_calculated_in_stable = false; // Reset flag when entering stable mode
+        }
+        else if (netCAS_mode == NETCAS_MODE_CONGESTION && drop_permil < CONGESTION_THRESHOLD)
+        {
+            // Congestion -> Stable
+            netCAS_mode = NETCAS_MODE_STABLE;
+            split_ratio_calculated_in_stable = false; // Reset flag when entering stable mode
+        }
+        else if (netCAS_mode == NETCAS_MODE_STABLE && drop_permil > CONGESTION_THRESHOLD)
+        {
+            // Stable -> Congestion
+            netCAS_mode = NETCAS_MODE_CONGESTION;
+            split_ratio_calculated_in_stable = true; // Set flag when entering congestion
+        }
+        else if (CACHING_FAILED)
+        {
+            netCAS_mode = NETCAS_MODE_FAILURE;
+        }
+    }
+    return netCAS_mode;
+}
+
+static void update_rdma_window(uint64_t curr_rdma_throughput)
+{
+    // Update window
+    if (rdma_window_count < RDMA_WINDOW_SIZE)
+    {
+        rdma_window_count++;
+    }
+    else
+    {
+        rdma_window_sum -= rdma_throughput_window[rdma_window_index];
+    }
+    rdma_throughput_window[rdma_window_index] = curr_rdma_throughput;
+    rdma_window_sum += curr_rdma_throughput;
+    rdma_window_average = rdma_window_sum / rdma_window_count;
+    rdma_window_index = (rdma_window_index + 1) % RDMA_WINDOW_SIZE;
+
+    if (max_average_rdma_throughput < rdma_window_average)
+    {
+        max_average_rdma_throughput = rdma_window_average;
+        if (SPLIT_VERBOSE_LOG)
+            printk(KERN_ALERT "NETCAS_SPLIT: max_average_rdma_throughput: %llu\n", max_average_rdma_throughput);
+    }
+}
+
 /**
  * Split ratio monitor thread logic.
  */
-static int
+static uint64_t
 split_monitor_func(void *core_ptr)
 {
     ocf_core_t core = core_ptr;
-    int split_ratio;
-    uint64_t curr_time;
+    uint64_t split_ratio;
+    uint64_t drop_permil = 0;
+    netCAS_mode_t netCAS_mode = NETCAS_MODE_IDLE;
     uint64_t curr_rdma_throughput;
 
     if (SPLIT_VERBOSE_LOG)
@@ -160,110 +284,95 @@ split_monitor_func(void *core_ptr)
         if (kthread_should_stop())
         {
             env_rwlock_destroy(&split_ratio_lock);
+            env_rwlock_destroy(&data_admit_lock);
             if (SPLIT_VERBOSE_LOG)
                 printk(KERN_ALERT "NETCAS_SPLIT: Monitor thread stopping\n");
             break;
         }
 
         // Get current time and RDMA metrics
-        curr_time = env_get_tick_count();
         struct rdma_metrics rdma_metrics = measure_performance();
         curr_rdma_throughput = rdma_metrics.throughput;
+        if (max_average_rdma_throughput > 0)
+        {
+            drop_permil = ((max_average_rdma_throughput - rdma_window_average) * 1000) / max_average_rdma_throughput;
+        }
 
         // Mode management logic
-        if (curr_rdma_throughput == 0)
+        netCAS_mode = determine_netcas_mode(curr_rdma_throughput, drop_permil);
+
+        switch (netCAS_mode)
         {
-            netCAS_mode = NETCAS_MODE_IDLE;
-            just_initialized = true;
-            in_warmup = false;
-            last_nonzero_transition_time = 0;
-        }
-        else if (curr_rdma_throughput > RDMA_THRESHOLD && just_initialized)
-        {
-            // Start warmup
-            netCAS_mode = NETCAS_MODE_WARMUP;
-            in_warmup = true;
-            last_nonzero_transition_time = curr_time;
+        case NETCAS_MODE_IDLE:
             if (SPLIT_VERBOSE_LOG)
-                printk(KERN_ALERT "NETCAS_SPLIT: Starting warmup\n");
-            just_initialized = false; // Only start warmup once per initialization
-        }
-        else if (in_warmup)
-        {
-            // If in warmup, check for end condition
-            if (curr_time - last_nonzero_transition_time >= WARMUP_PERIOD_NS)
+                printk(KERN_ALERT "NETCAS_SPLIT: Idle mode\n");
+            if (!netCAS_initialized)
             {
-                in_warmup = false;
+                init_netCAS();
+            }
+            break;
+
+        case NETCAS_MODE_WARMUP:
+            if (SPLIT_VERBOSE_LOG)
+                printk(KERN_ALERT "NETCAS_SPLIT: Warmup mode\n");
+            netcas_set_data_admit(false);
+            break;
+
+        case NETCAS_MODE_STABLE:
+            if (SPLIT_VERBOSE_LOG)
+                printk(KERN_ALERT "NETCAS_SPLIT: Stable mode\n");
+            netcas_set_data_admit(false);
+            update_rdma_window(curr_rdma_throughput);
+
+            // Only calculate split ratio once in stable mode
+            if (!split_ratio_calculated_in_stable && rdma_window_count >= RDMA_WINDOW_SIZE)
+            {
+                split_ratio = find_best_split_ratio(core, IO_DEPTH, NUM_JOBS, curr_rdma_throughput, drop_permil);
+                optimal_split_ratio = split_ratio;
+                split_set_optimal_ratio(optimal_split_ratio);
+                split_ratio_calculated_in_stable = true; // Mark as calculated
                 if (SPLIT_VERBOSE_LOG)
-                    printk(KERN_ALERT "NETCAS_SPLIT: Warmup period over\n");
-            }
-        }
-        else if (!in_warmup && !just_initialized)
-        {
-            netCAS_mode = NETCAS_MODE_STABLE;
-        }
-
-        // Only calculate split ratio in stable mode
-        if (netCAS_mode == NETCAS_MODE_STABLE)
-        {
-            /* Update moving average window before using it */
-            if (curr_rdma_throughput == 0)
-            {
-                // Reset window
-                int i;
-                for (i = 0; i < RDMA_WINDOW_SIZE; ++i)
-                    rdma_throughput_window[i] = 0;
-                rdma_window_sum = 0;
-                rdma_window_index = 0;
-                rdma_window_count = 0;
-            }
-            else
-            {
-                // Update window
-                if (rdma_window_count < RDMA_WINDOW_SIZE)
                 {
-                    rdma_window_count++;
-                }
-                else
-                {
-                    rdma_window_sum -= rdma_throughput_window[rdma_window_index];
-                }
-                rdma_throughput_window[rdma_window_index] = curr_rdma_throughput;
-                rdma_window_sum += curr_rdma_throughput;
-                rdma_window_average = rdma_window_sum / rdma_window_count;
-                rdma_window_index = (rdma_window_index + 1) % RDMA_WINDOW_SIZE;
-
-                if (max_average_rdma_throughput < rdma_window_average)
-                {
-                    max_average_rdma_throughput = rdma_window_average;
-                    if (SPLIT_VERBOSE_LOG)
-                        printk(KERN_ALERT "NETCAS_SPLIT: max_average_rdma_throughput: %llu\n", max_average_rdma_throughput);
+                    printk(KERN_ALERT "NETCAS_SPLIT: Split ratio calculated once in stable mode: %d\n",
+                           split_ratio);
                 }
             }
+            break;
 
-            // Only calculate split ratio if we have enough data
+        case NETCAS_MODE_CONGESTION:
+            if (SPLIT_VERBOSE_LOG)
+                printk(KERN_ALERT "NETCAS_SPLIT: Congestion mode\n");
+            netcas_set_data_admit(false);
+            update_rdma_window(curr_rdma_throughput);
+
+            // Continuously calculate split ratio in congestion mode
             if (rdma_window_count >= RDMA_WINDOW_SIZE)
             {
-                int new_split_ratio;
-                new_split_ratio = find_best_split_ratio(core, IO_DEPTH, NUM_JOBS, curr_rdma_throughput);
+                split_ratio = find_best_split_ratio(core, IO_DEPTH, NUM_JOBS, curr_rdma_throughput, drop_permil);
 
-                // Update the local split ratio if it changed
-                if (split_ratio != new_split_ratio)
+                // Update the split ratio if it changed
+                if (split_ratio != optimal_split_ratio)
                 {
-                    split_ratio = new_split_ratio;
+                    optimal_split_ratio = split_ratio;
                     split_set_optimal_ratio(split_ratio);
                     if (SPLIT_VERBOSE_LOG)
                     {
-                        printk(KERN_ALERT "NETCAS_SPLIT: Split ratio updated to %d\n",
+                        printk(KERN_ALERT "NETCAS_SPLIT: Split ratio updated in congestion mode: %d\n",
                                split_ratio);
                     }
                 }
             }
-        }
+            break;
 
-        // Sleep for the monitoring interval
-        msleep(MONITOR_INTERVAL_MS);
+        case NETCAS_MODE_FAILURE:
+            if (SPLIT_VERBOSE_LOG)
+                printk(KERN_ALERT "NETCAS_SPLIT: Failure mode\n");
+            break;
+        }
     }
+
+    // Sleep for the monitoring interval
+    msleep(MONITOR_INTERVAL_MS);
 
     return 0;
 }
@@ -273,14 +382,15 @@ static struct task_struct *split_monitor_thread_st = NULL;
 /**
  * Setup split ratio management and start the monitor thread.
  */
-int netcas_mngt_split_monitor_start(ocf_core_t core)
+uint64_t netcas_mngt_split_monitor_start(ocf_core_t core)
 {
     if (split_monitor_thread_st != NULL) // Already started.
         return 0;
 
-    optimal_split_ratio = 49; // Default 49% to cache
+    init_netCAS();
 
     env_rwlock_init(&split_ratio_lock);
+    env_rwlock_init(&data_admit_lock);
 
     /** Create the monitor thread. */
     split_monitor_thread_st = kthread_run(split_monitor_func, (void *)core,
