@@ -42,7 +42,7 @@ static bool netCAS_initialized = false;
 static bool split_ratio_calculated_in_stable = false; // Track if split ratio was calculated in stable mode
 
 /** Optimal split ratio, protected by a global rwlock. */
-static uint64_t optimal_split_ratio = 100; // Default 100% to cache
+static uint64_t optimal_split_ratio = SPLIT_RATIO_MAX; // Default 100% to cache (10000)
 
 /** `data_admit` switch, protected by a global rwlock. */
 static bool global_data_admit = true;
@@ -103,22 +103,23 @@ bool netcas_query_data_admit(void)
 }
 
 /**
- * Calculate split ratio using the formula A/(A+B) * 100.
+ * Calculate split ratio using the formula A/(A+B) * 10000.
  * This is the core formula for determining optimal split ratio.
+ * Uses 0-10000 scale where 10000 = 100% for more accurate calculations.
  */
 static uint64_t
 calculate_split_ratio_formula(uint64_t bandwidth_cache_only, uint64_t bandwidth_backend_only)
 {
     uint64_t calculated_split;
 
-    /* Calculate optimal split ratio using formula A/(A+B) * 100 */
-    calculated_split = (bandwidth_cache_only * 100) / (bandwidth_cache_only + bandwidth_backend_only);
+    /* Calculate optimal split ratio using formula A/(A+B) * 10000 */
+    calculated_split = (bandwidth_cache_only * SPLIT_RATIO_SCALE) / (bandwidth_cache_only + bandwidth_backend_only);
 
-    /* Ensure the result is within valid range (0-100) */
-    if (calculated_split < 0)
-        calculated_split = 0;
-    if (calculated_split > 100)
-        calculated_split = 100;
+    /* Ensure the result is within valid range (0-10000) */
+    if (calculated_split < SPLIT_RATIO_MIN)
+        calculated_split = SPLIT_RATIO_MIN;
+    if (calculated_split > SPLIT_RATIO_MAX)
+        calculated_split = SPLIT_RATIO_MAX;
 
     return calculated_split;
 }
@@ -126,6 +127,7 @@ calculate_split_ratio_formula(uint64_t bandwidth_cache_only, uint64_t bandwidth_
 /**
  * Function to find the best split ratio for given IO depth and NumJob.
  * Based on the algorithm from engine_fast.c
+ * Returns split ratio in 0-10000 scale where 10000 = 100%.
  */
 static uint64_t
 find_best_split_ratio(ocf_core_t core, uint64_t io_depth, uint64_t numjob, uint64_t curr_rdma_throughput, uint64_t drop_permil)
@@ -141,7 +143,7 @@ find_best_split_ratio(ocf_core_t core, uint64_t io_depth, uint64_t numjob, uint6
 
     if (max_average_rdma_throughput == 0)
     {
-        return 100;
+        return SPLIT_RATIO_MAX; // Return 10000 (100%)
     }
 
     // If current RDMA throughput is less than 9% of max_average_rdma_throughput,
@@ -156,8 +158,9 @@ find_best_split_ratio(ocf_core_t core, uint64_t io_depth, uint64_t numjob, uint6
 
     if (SPLIT_VERBOSE_LOG)
     {
-        printk(KERN_ALERT "NETCAS_SPLIT: Optimal split ratio for IO_Depth=%llu, NumJob=%llu is %llu:%llu (cache_iops=%llu, adjusted_backend_iops=%llu)",
-               io_depth, numjob, calculated_split, 100 - calculated_split,
+        printk(KERN_ALERT "NETCAS_SPLIT: Optimal split ratio for IO_Depth=%llu, NumJob=%llu is %llu:%llu (%.2f%%:%.2f%%) (cache_iops=%llu, adjusted_backend_iops=%llu)",
+               io_depth, numjob, calculated_split, SPLIT_RATIO_MAX - calculated_split,
+               (double)calculated_split / 100.0, (double)(SPLIT_RATIO_MAX - calculated_split) / 100.0,
                bandwidth_cache_only, bandwidth_backend_only);
     }
 
@@ -180,7 +183,7 @@ static void init_netCAS(void)
     netcas_set_data_admit(true);
 
     // Initialize split ratio
-    split_set_optimal_ratio(100);
+    split_set_optimal_ratio(SPLIT_RATIO_MAX);
 
     // Initialize netCAS variables
     last_nonzero_transition_time = 0;
@@ -335,8 +338,8 @@ split_monitor_func(void *core_ptr)
                 split_ratio_calculated_in_stable = true; // Mark as calculated
                 if (SPLIT_VERBOSE_LOG)
                 {
-                    printk(KERN_ALERT "NETCAS_SPLIT: Split ratio calculated once in stable mode: %llu\n",
-                           split_ratio);
+                    printk(KERN_ALERT "NETCAS_SPLIT: Split ratio calculated once in stable mode: %llu (%.2f%%)\n",
+                           split_ratio, (double)split_ratio / 100.0);
                 }
             }
             break;
@@ -359,8 +362,8 @@ split_monitor_func(void *core_ptr)
                     split_set_optimal_ratio(split_ratio);
                     if (SPLIT_VERBOSE_LOG)
                     {
-                        printk(KERN_ALERT "NETCAS_SPLIT: Split ratio updated in congestion mode: %llu\n",
-                               split_ratio);
+                        printk(KERN_ALERT "NETCAS_SPLIT: Split ratio updated in congestion mode: %llu (%.2f%%)\n",
+                               split_ratio, (double)split_ratio / 100.0);
                     }
                 }
             }

@@ -18,6 +18,11 @@
 #define RDMA_THRESHOLD 100              /* Threshold for starting warmup */
 #define CONGESTION_THRESHOLD 90         /* 90% drop threshold for congestion mode */
 
+/* Scale constants for split ratio (0-10000 where 10000 = 100%) */
+#define SPLIT_RATIO_SCALE 10000 /* Scale factor for split ratio */
+#define SPLIT_RATIO_MAX 10000   /* Maximum split ratio value */
+#define SPLIT_RATIO_MIN 0       /* Minimum split ratio value */
+
 /* Test app parameters */
 extern const uint64_t IO_DEPTH;
 extern const uint64_t NUM_JOBS;
@@ -36,7 +41,7 @@ typedef enum
 
 /**
  * Query the current optimal split ratio.
- * @return Current optimal split ratio (0-100)
+ * @return Current optimal split ratio (0-10000 where 10000 = 100%)
  */
 uint64_t netcas_query_optimal_split_ratio(void);
 
