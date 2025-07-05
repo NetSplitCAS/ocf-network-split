@@ -27,16 +27,16 @@
 #define OCF_ENGINE_DEBUG_IO_NAME "mfcwt"
 #include "engine_debug.h"
 
-// Include netCAS
-#define USING_NETCAS true
+// Use global flag for netCAS
+extern bool USING_NETCAS_SPLIT;
 
 // ====== Multi-Factor Cached Write-Through: READ ======
 
 static inline bool data_admit_allow(void)
 {
-    if (USING_NETCAS)
+    if (USING_NETCAS_SPLIT)
     {
-        return netcas_data_admit_allow();
+        return netcas_query_data_admit();
     }
     else
     {
@@ -59,8 +59,8 @@ static inline bool load_admit_allow(struct ocf_request *req)
     static uint32_t cache_requests = 0;
     static uint32_t backend_requests = 0;
 
-    uint32_t split_ratio;
-    if (USING_NETCAS)
+    uint64_t split_ratio;
+    if (USING_NETCAS_SPLIT)
     {
         split_ratio = netcas_query_optimal_split_ratio();
     }
