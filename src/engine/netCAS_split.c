@@ -165,9 +165,9 @@ find_best_split_ratio(ocf_core_t core, uint64_t io_depth, uint64_t numjob, uint6
 
     if (SPLIT_VERBOSE_LOG)
     {
-        printk(KERN_ALERT "NETCAS_SPLIT: Optimal split ratio for IO_Depth=%llu, NumJob=%llu is %llu:%llu (%.2f%%:%.2f%%) (cache_iops=%llu, adjusted_backend_iops=%llu)",
+        printk(KERN_ALERT "NETCAS_SPLIT: Optimal split ratio for IO_Depth=%llu, NumJob=%llu is %llu:%llu (%llu.%02llu%%:%llu.%02llu%%) (cache_iops=%llu, adjusted_backend_iops=%llu)",
                io_depth, numjob, calculated_split, SPLIT_RATIO_MAX - calculated_split,
-               (double)calculated_split / 100.0, (double)(SPLIT_RATIO_MAX - calculated_split) / 100.0,
+               calculated_split / 100, calculated_split % 100, (SPLIT_RATIO_MAX - calculated_split) / 100, (SPLIT_RATIO_MAX - calculated_split) % 100,
                bandwidth_cache_only, bandwidth_backend_only);
     }
 
@@ -345,8 +345,8 @@ split_monitor_func(void *core_ptr)
                 split_ratio_calculated_in_stable = true; // Mark as calculated
                 if (SPLIT_VERBOSE_LOG)
                 {
-                    printk(KERN_ALERT "NETCAS_SPLIT: Split ratio calculated once in stable mode: %llu (%.2f%%)\n",
-                           split_ratio, (double)split_ratio / 100.0);
+                    printk(KERN_ALERT "NETCAS_SPLIT: Split ratio calculated once in stable mode: %llu (%llu.%02llu%%)\n",
+                           split_ratio, split_ratio / 100, split_ratio % 100);
                 }
             }
             break;
@@ -369,8 +369,8 @@ split_monitor_func(void *core_ptr)
                     split_set_optimal_ratio(split_ratio);
                     if (SPLIT_VERBOSE_LOG)
                     {
-                        printk(KERN_ALERT "NETCAS_SPLIT: Split ratio updated in congestion mode: %llu (%.2f%%)\n",
-                               split_ratio, (double)split_ratio / 100.0);
+                        printk(KERN_ALERT "NETCAS_SPLIT: Split ratio updated in congestion mode: %llu (%llu.%02llu%%)\n",
+                               split_ratio, split_ratio / 100, split_ratio % 100);
                     }
                 }
             }

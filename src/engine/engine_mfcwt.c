@@ -58,6 +58,11 @@ static inline bool load_admit_allow(struct ocf_request *req)
     static uint32_t total_requests = 0;
     static uint32_t cache_requests = 0;
     static uint32_t backend_requests = 0;
+    const uint32_t window_size = 10000;
+    const uint32_t max_pattern_size = 10;
+    bool send_to_backend;
+    uint32_t expected_cache_ratio;
+    uint32_t expected_backend_ratio;
 
     uint64_t split_ratio;
     if (USING_NETCAS_SPLIT)
@@ -68,12 +73,6 @@ static inline bool load_admit_allow(struct ocf_request *req)
     {
         split_ratio = monitor_query_load_admit();
     }
-
-    const uint32_t window_size = 10000;
-    const uint32_t max_pattern_size = 10;
-    bool send_to_backend;
-    uint32_t expected_cache_ratio;
-    uint32_t expected_backend_ratio;
 
     if (request_counter % window_size == 0 || pattern_size == 0)
     {
@@ -103,7 +102,7 @@ static inline bool load_admit_allow(struct ocf_request *req)
         cache_quota = split_ratio;
         backend_quota = window_size - split_ratio;
         pattern_position = 0;
-        OCF_DEBUG_RQ(req, "[MFCWT] [load_admit_allow] --- 패턴 초기화: split_ratio=%u, pattern_size=%u, pattern_cache=%u, pattern_backend=%u", split_ratio, pattern_size, pattern_cache, pattern_backend);
+        OCF_DEBUG_RQ(req, "[MFCWT] [load_admit_allow] --- 패턴 초기화: split_ratio=%llu, pattern_size=%u, pattern_cache=%u, pattern_backend=%u", split_ratio, pattern_size, pattern_cache, pattern_backend);
     }
 
     request_counter++;
@@ -111,7 +110,7 @@ static inline bool load_admit_allow(struct ocf_request *req)
 
     expected_cache_ratio = (total_requests * split_ratio) / window_size;
     expected_backend_ratio = total_requests - expected_cache_ratio;
-    OCF_DEBUG_RQ(req, "[MFCWT] [load_admit_allow] --- 요청 #%u: split_ratio=%u, expected_cache_ratio=%u, expected_backend_ratio=%u, cache_requests=%u, backend_requests=%u", total_requests, split_ratio, expected_cache_ratio, expected_backend_ratio, cache_requests, backend_requests);
+    OCF_DEBUG_RQ(req, "[MFCWT] [load_admit_allow] --- 요청 #%u: split_ratio=%llu, expected_cache_ratio=%u, expected_backend_ratio=%u, cache_requests=%u, backend_requests=%u", total_requests, split_ratio, expected_cache_ratio, expected_backend_ratio, cache_requests, backend_requests);
 
     if (cache_requests < expected_cache_ratio)
     {

@@ -140,7 +140,7 @@ static /*inline*/ int get_split_ratio_index(int split_ratio) {
 }
 
 /* Function to lookup bandwidth given IO_Depth, NumJob, and Split_Ratio */
-static /*inline*/ int lookup_bandwidth(int io_depth, int numjob, int split_ratio) {
+int lookup_bandwidth(int io_depth, int numjob, int split_ratio) {
     int io_depth_idx;
     int numjob_idx;
     int split_ratio_idx;
