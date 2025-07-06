@@ -21,7 +21,7 @@
 #include "../utils/pmem_nvme/pmem_nvme_table.h"
 
 /** Global flag to control which monitor to use */
-bool USING_NETCAS_SPLIT = false; /* Default to mf_monitor */
+bool USING_NETCAS_SPLIT = true; /* Default to netCAS_split */
 
 /* To enable netCAS_split mode, change the above line to:
  * bool USING_NETCAS_SPLIT = true;  // Enable netCAS_split mode
