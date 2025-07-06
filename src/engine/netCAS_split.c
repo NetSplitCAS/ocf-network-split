@@ -23,10 +23,6 @@
 /** Global flag to control which monitor to use */
 bool USING_NETCAS_SPLIT = true; /* Default to netCAS_split */
 
-/* To enable netCAS_split mode, change the above line to:
- * bool USING_NETCAS_SPLIT = true;  // Enable netCAS_split mode
- */
-
 /** Enable kernel verbose logging? */
 static const bool SPLIT_VERBOSE_LOG = true;
 
@@ -381,10 +377,10 @@ split_monitor_func(void *core_ptr)
                 printk(KERN_ALERT "NETCAS_SPLIT: Failure mode\n");
             break;
         }
-    }
 
-    // Sleep for the monitoring interval
-    msleep(MONITOR_INTERVAL_MS);
+        // Sleep for the monitoring interval
+        msleep(MONITOR_INTERVAL_MS);
+    }
 
     return 0;
 }
