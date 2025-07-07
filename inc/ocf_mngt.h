@@ -17,7 +17,8 @@
 /**
  * @brief Core start configuration
  */
-struct ocf_mngt_core_config {
+struct ocf_mngt_core_config
+{
 	/**
 	 * @brief OCF core name
 	 */
@@ -40,9 +41,10 @@ struct ocf_mngt_core_config {
 	bool try_add;
 
 	uint32_t seq_cutoff_threshold;
-		/*!< Sequential cutoff threshold (in bytes) */
+	/*!< Sequential cutoff threshold (in bytes) */
 
-	struct {
+	struct
+	{
 		void *data;
 		size_t size;
 	} user_metadata;
@@ -57,7 +59,7 @@ struct ocf_mngt_core_config {
  * @param[in] cfg Core config stucture
  */
 static inline void ocf_mngt_core_config_set_default(
-		struct ocf_mngt_core_config *cfg)
+	struct ocf_mngt_core_config *cfg)
 {
 	cfg->try_add = false;
 	cfg->seq_cutoff_threshold = 1024;
@@ -90,8 +92,8 @@ uint32_t ocf_mngt_cache_get_count(ocf_ctx_t ctx);
  * @retval 0 Get cache successfully
  * @retval -OCF_ERR_CACHE_NOT_EXIST Cache with given name doesn't exist
  */
-int ocf_mngt_cache_get_by_name(ocf_ctx_t ctx, const char* name, size_t name_len,
-		ocf_cache_t *cache);
+int ocf_mngt_cache_get_by_name(ocf_ctx_t ctx, const char *name, size_t name_len,
+							   ocf_cache_t *cache);
 
 /**
  * @brief Increment reference counter of cache
@@ -123,7 +125,7 @@ void ocf_mngt_cache_put(ocf_cache_t cache);
  *	-OCF_ERR_INTR Wait operation interrupted
  */
 typedef void (*ocf_mngt_cache_lock_end_t)(ocf_cache_t cache,
-		void *priv, int error);
+										  void *priv, int error);
 
 /**
  * @brief Lock cache for management oparations (write lock, exclusive)
@@ -133,7 +135,7 @@ typedef void (*ocf_mngt_cache_lock_end_t)(ocf_cache_t cache,
  * @param[in] priv Private context of completion callback
  */
 void ocf_mngt_cache_lock(ocf_cache_t cache,
-		ocf_mngt_cache_lock_end_t cmpl, void *priv);
+						 ocf_mngt_cache_lock_end_t cmpl, void *priv);
 
 /**
  * @brief Lock cache for read - assures cache config does not change while
@@ -145,7 +147,7 @@ void ocf_mngt_cache_lock(ocf_cache_t cache,
  * @param[in] priv Private context of completion callback
  */
 void ocf_mngt_cache_read_lock(ocf_cache_t cache,
-		ocf_mngt_cache_lock_end_t cmpl, void *priv);
+							  ocf_mngt_cache_lock_end_t cmpl, void *priv);
 
 /**
  * @brief Lock cache for management oparations (write lock, exclusive)
@@ -211,7 +213,7 @@ typedef int (*ocf_mngt_cache_visitor_t)(ocf_cache_t cache, void *cntx);
  * @retval Non-zero Error
  */
 int ocf_mngt_cache_visit(ocf_ctx_t ctx, ocf_mngt_cache_visitor_t visitor,
-		void *cntx);
+						 void *cntx);
 
 /**
  * @brief Loop for each cache reverse
@@ -226,12 +228,13 @@ int ocf_mngt_cache_visit(ocf_ctx_t ctx, ocf_mngt_cache_visitor_t visitor,
  * @retval Non-zero Error
  */
 int ocf_mngt_cache_visit_reverse(ocf_ctx_t ctx, ocf_mngt_cache_visitor_t visitor,
-		void *cntx);
+								 void *cntx);
 
 /**
  * @brief Cache start configuration
  */
-struct ocf_mngt_cache_config {
+struct ocf_mngt_cache_config
+{
 	/**
 	 * @brief Cache name
 	 */
@@ -267,9 +270,10 @@ struct ocf_mngt_cache_config {
 	/**
 	 * @brief Backfill configuration
 	 */
-	struct {
-		 uint32_t max_queue_size;
-		 uint32_t queue_unblock_size;
+	struct
+	{
+		uint32_t max_queue_size;
+		uint32_t queue_unblock_size;
 	} backfill;
 
 	/**
@@ -300,7 +304,7 @@ struct ocf_mngt_cache_config {
  * @param[in] cfg Cache config stucture
  */
 static inline void ocf_mngt_cache_config_set_default(
-		struct ocf_mngt_cache_config *cfg)
+	struct ocf_mngt_cache_config *cfg)
 {
 	cfg->cache_mode = ocf_cache_mode_default;
 	cfg->eviction_policy = ocf_eviction_default;
@@ -326,7 +330,7 @@ static inline void ocf_mngt_cache_config_set_default(
  * @retval Non-zero Error occurred and starting cache failed
  */
 int ocf_mngt_cache_start(ocf_ctx_t ctx, ocf_cache_t *cache,
-		struct ocf_mngt_cache_config *cfg);
+						 struct ocf_mngt_cache_config *cfg);
 
 /**
  * @brief Set queue to be used during management operations
@@ -347,7 +351,7 @@ int ocf_mngt_cache_set_mngt_queue(ocf_cache_t cache, ocf_queue_t queue);
  * @param[in] error Error code (zero on success)
  */
 typedef void (*ocf_mngt_cache_stop_end_t)(ocf_cache_t cache,
-		void *priv, int error);
+										  void *priv, int error);
 
 /**
  * @brief Stop cache instance
@@ -357,12 +361,13 @@ typedef void (*ocf_mngt_cache_stop_end_t)(ocf_cache_t cache,
  * @param[in] priv Completion callback context
  */
 void ocf_mngt_cache_stop(ocf_cache_t cache,
-		ocf_mngt_cache_stop_end_t cmpl, void *priv);
+						 ocf_mngt_cache_stop_end_t cmpl, void *priv);
 
 /**
  * @brief Cache attach configuration
  */
-struct ocf_mngt_cache_device_config {
+struct ocf_mngt_cache_device_config
+{
 	/**
 	 * @brief Cache volume UUID
 	 */
@@ -427,7 +432,7 @@ struct ocf_mngt_cache_device_config {
  * @param[in] cfg Cache device config stucture
  */
 static inline void ocf_mngt_cache_device_config_set_default(
-		struct ocf_mngt_cache_device_config *cfg)
+	struct ocf_mngt_cache_device_config *cfg)
 {
 	cfg->cache_line_size = ocf_cache_line_size_none;
 	cfg->open_cores = true;
@@ -448,7 +453,7 @@ static inline void ocf_mngt_cache_device_config_set_default(
  * @retval Non-zero Error occurred
  */
 int ocf_mngt_get_ram_needed(ocf_cache_t cache,
-		struct ocf_mngt_cache_device_config *cfg, uint64_t *ram_needed);
+							struct ocf_mngt_cache_device_config *cfg, uint64_t *ram_needed);
 
 /**
  * @brief Completion callback of cache attach operation
@@ -458,7 +463,7 @@ int ocf_mngt_get_ram_needed(ocf_cache_t cache,
  * @param[in] error Error code (zero on success)
  */
 typedef void (*ocf_mngt_cache_attach_end_t)(ocf_cache_t cache,
-		void *priv, int error);
+											void *priv, int error);
 
 /**
  * @brief Attach caching device to cache instance
@@ -469,8 +474,8 @@ typedef void (*ocf_mngt_cache_attach_end_t)(ocf_cache_t cache,
  * @param[in] priv Completion callback context
  */
 void ocf_mngt_cache_attach(ocf_cache_t cache,
-		struct ocf_mngt_cache_device_config *cfg,
-		ocf_mngt_cache_attach_end_t cmpl, void *priv);
+						   struct ocf_mngt_cache_device_config *cfg,
+						   ocf_mngt_cache_attach_end_t cmpl, void *priv);
 
 /**
  * @brief Completion callback of cache detach operation
@@ -480,7 +485,7 @@ void ocf_mngt_cache_attach(ocf_cache_t cache,
  * @param[in] error Error code (zero on success)
  */
 typedef void (*ocf_mngt_cache_detach_end_t)(ocf_cache_t cache,
-		void *priv, int error);
+											void *priv, int error);
 
 /**
  * @brief Detach caching cache
@@ -490,7 +495,7 @@ typedef void (*ocf_mngt_cache_detach_end_t)(ocf_cache_t cache,
  * @param[in] priv Completion callback context
  */
 void ocf_mngt_cache_detach(ocf_cache_t cache,
-		ocf_mngt_cache_detach_end_t cmpl, void *priv);
+						   ocf_mngt_cache_detach_end_t cmpl, void *priv);
 
 /**
  * @brief Completion callback of cache load operation
@@ -500,7 +505,7 @@ void ocf_mngt_cache_detach(ocf_cache_t cache,
  * @param[in] error Error code (zero on success)
  */
 typedef void (*ocf_mngt_cache_load_end_t)(ocf_cache_t cache,
-		void *priv, int error);
+										  void *priv, int error);
 
 /**
  * @brief Load cache instance
@@ -511,8 +516,8 @@ typedef void (*ocf_mngt_cache_load_end_t)(ocf_cache_t cache,
  * @param[in] priv Completion callback context
  */
 void ocf_mngt_cache_load(ocf_cache_t cache,
-		struct ocf_mngt_cache_device_config *cfg,
-		ocf_mngt_cache_load_end_t cmpl, void *priv);
+						 struct ocf_mngt_cache_device_config *cfg,
+						 ocf_mngt_cache_load_end_t cmpl, void *priv);
 
 /* Adding and removing cores */
 
@@ -525,7 +530,7 @@ void ocf_mngt_cache_load(ocf_cache_t cache,
  * @param[in] error Error code (zero on success)
  */
 typedef void (*ocf_mngt_cache_add_core_end_t)(ocf_cache_t cache,
-		ocf_core_t core, void *priv, int error);
+											  ocf_core_t core, void *priv, int error);
 
 /**
  * @brief Add core to cache instance
@@ -536,8 +541,8 @@ typedef void (*ocf_mngt_cache_add_core_end_t)(ocf_cache_t cache,
  * @param[in] priv Completion callback context
  */
 void ocf_mngt_cache_add_core(ocf_cache_t cache,
-		struct ocf_mngt_core_config *cfg,
-		ocf_mngt_cache_add_core_end_t cmpl, void *priv);
+							 struct ocf_mngt_core_config *cfg,
+							 ocf_mngt_cache_add_core_end_t cmpl, void *priv);
 
 /**
  * @brief Completion callback of remove core operation
@@ -555,7 +560,7 @@ typedef void (*ocf_mngt_cache_remove_core_end_t)(void *priv, int error);
  * @param[in] priv Completion callback context
  */
 void ocf_mngt_cache_remove_core(ocf_core_t core,
-		ocf_mngt_cache_remove_core_end_t cmpl, void *priv);
+								ocf_mngt_cache_remove_core_end_t cmpl, void *priv);
 
 /**
  * @brief Completion callback of detach core operation
@@ -573,7 +578,7 @@ typedef void (*ocf_mngt_cache_detach_core_end_t)(void *priv, int error);
  * @param[in] priv Completion callback context
  */
 void ocf_mngt_cache_detach_core(ocf_core_t core,
-		ocf_mngt_cache_detach_core_end_t cmpl, void *priv);
+								ocf_mngt_cache_detach_core_end_t cmpl, void *priv);
 
 /* Flush operations */
 
@@ -585,7 +590,7 @@ void ocf_mngt_cache_detach_core(ocf_core_t core,
  * @param[in] error Error code (zero on success)
  */
 typedef void (*ocf_mngt_cache_flush_end_t)(ocf_cache_t cache,
-		void *priv, int error);
+										   void *priv, int error);
 
 /**
  * @brief Flush data from given cache
@@ -595,7 +600,7 @@ typedef void (*ocf_mngt_cache_flush_end_t)(ocf_cache_t cache,
  * @param[in] priv Completion callback context
  */
 void ocf_mngt_cache_flush(ocf_cache_t cache,
-		ocf_mngt_cache_flush_end_t cmpl, void *priv);
+						  ocf_mngt_cache_flush_end_t cmpl, void *priv);
 
 /**
  * @brief Check if core is dirty
@@ -623,7 +628,7 @@ bool ocf_mngt_cache_is_dirty(ocf_cache_t cache);
  * @param[in] error Error code (zero on success)
  */
 typedef void (*ocf_mngt_core_flush_end_t)(ocf_core_t core,
-		void *priv, int error);
+										  void *priv, int error);
 
 /**
  * @brief Flush data to given core
@@ -633,7 +638,7 @@ typedef void (*ocf_mngt_core_flush_end_t)(ocf_core_t core,
  * @param[in] priv Completion callback context
  */
 void ocf_mngt_core_flush(ocf_core_t core,
-		ocf_mngt_core_flush_end_t cmpl, void *priv);
+						 ocf_mngt_core_flush_end_t cmpl, void *priv);
 
 /**
  * @brief Completion callback of cache purge operation
@@ -643,7 +648,7 @@ void ocf_mngt_core_flush(ocf_core_t core,
  * @param[in] error Error code (zero on success)
  */
 typedef void (*ocf_mngt_cache_purge_end_t)(ocf_cache_t cache,
-		void *priv, int error);
+										   void *priv, int error);
 
 /**
  * @brief Purge data from given cache
@@ -653,7 +658,7 @@ typedef void (*ocf_mngt_cache_purge_end_t)(ocf_cache_t cache,
  * @param[in] priv Completion callback context
  */
 void ocf_mngt_cache_purge(ocf_cache_t cache,
-		ocf_mngt_cache_purge_end_t cmpl, void *priv);
+						  ocf_mngt_cache_purge_end_t cmpl, void *priv);
 
 /**
  * @brief Completion callback of core purge operation
@@ -663,7 +668,7 @@ void ocf_mngt_cache_purge(ocf_cache_t cache,
  * @param[in] error Error code (zero on success)
  */
 typedef void (*ocf_mngt_core_purge_end_t)(ocf_core_t core,
-		void *priv, int error);
+										  void *priv, int error);
 
 /**
  * @brief Purge data to given core
@@ -673,7 +678,7 @@ typedef void (*ocf_mngt_core_purge_end_t)(ocf_core_t core,
  * @param[in] priv Completion callback context
  */
 void ocf_mngt_core_purge(ocf_core_t core,
-		ocf_mngt_core_purge_end_t cmpl, void *priv);
+						 ocf_mngt_core_purge_end_t cmpl, void *priv);
 
 /**
  * @brief Interrupt existing flushing of cache or core
@@ -690,7 +695,7 @@ void ocf_mngt_cache_flush_interrupt(ocf_cache_t cache);
  * @param[in] error Error code (zero on success)
  */
 typedef void (*ocf_mngt_cache_save_end_t)(ocf_cache_t cache,
-		void *priv, int error);
+										  void *priv, int error);
 
 /**
  * @brief Save cache configuration data on cache volume
@@ -703,7 +708,7 @@ typedef void (*ocf_mngt_cache_save_end_t)(ocf_cache_t cache,
  * @param[in] priv Completion callback context
  */
 void ocf_mngt_cache_save(ocf_cache_t cache,
-		ocf_mngt_cache_save_end_t cmpl, void *priv);
+						 ocf_mngt_cache_save_end_t cmpl, void *priv);
 
 /**
  * @brief Determines whether given cache mode has write-back semantics, i.e. it
@@ -713,8 +718,7 @@ void ocf_mngt_cache_save(ocf_cache_t cache,
  */
 static inline bool ocf_mngt_cache_mode_has_lazy_write(ocf_cache_mode_t mode)
 {
-	return mode == ocf_cache_mode_wb || mode == ocf_cache_mode_wo
-	       || mode == ocf_cache_mode_mfwb;
+	return mode == ocf_cache_mode_wb || mode == ocf_cache_mode_wo || mode == ocf_cache_mode_mfwb;
 }
 
 /**
@@ -771,7 +775,7 @@ int ocf_mngt_cache_cleaning_get_policy(ocf_cache_t cache, ocf_cleaning_t *type);
  * @retval Non-zero Error occurred and parameter has not been set
  */
 int ocf_mngt_cache_cleaning_set_param(ocf_cache_t cache, ocf_cleaning_t type,
-		uint32_t param_id, uint32_t param_value);
+									  uint32_t param_id, uint32_t param_value);
 
 /**
  * @brief Get cleaning parameter from given cache
@@ -784,8 +788,8 @@ int ocf_mngt_cache_cleaning_set_param(ocf_cache_t cache, ocf_cleaning_t type,
  * @retval 0 Parameter has been get successfully
  * @retval Non-zero Error occurred and parameter has not been get
  */
-int ocf_mngt_cache_cleaning_get_param(ocf_cache_t cache,ocf_cleaning_t type,
-		uint32_t param_id, uint32_t *param_value);
+int ocf_mngt_cache_cleaning_get_param(ocf_cache_t cache, ocf_cleaning_t type,
+									  uint32_t param_id, uint32_t *param_value);
 
 /**
  * @brief Set promotion policy in given cache
@@ -822,7 +826,7 @@ ocf_promotion_t ocf_mngt_cache_promotion_get_policy(ocf_cache_t cache);
  * @retval Non-zero Error occurred and parameter has not been set
  */
 int ocf_mngt_cache_promotion_set_param(ocf_cache_t cache, ocf_promotion_t type,
-		uint8_t param_id, uint32_t param_value);
+									   uint8_t param_id, uint32_t param_value);
 
 /**
  * @brief Get promotion policy parameter for given cache
@@ -836,12 +840,13 @@ int ocf_mngt_cache_promotion_set_param(ocf_cache_t cache, ocf_promotion_t type,
  * @retval Non-zero Error occurred and parameter has not been retrieved
  */
 int ocf_mngt_cache_promotion_get_param(ocf_cache_t cache, ocf_promotion_t type,
-		uint8_t param_id, uint32_t *param_value);
+									   uint8_t param_id, uint32_t *param_value);
 
 /**
  * @brief IO class configuration
  */
-struct ocf_mngt_io_class_config {
+struct ocf_mngt_io_class_config
+{
 	/**
 	 * @brief IO class ID
 	 */
@@ -873,7 +878,8 @@ struct ocf_mngt_io_class_config {
 	uint32_t max_size;
 };
 
-struct ocf_mngt_io_classes_config {
+struct ocf_mngt_io_classes_config
+{
 	struct ocf_mngt_io_class_config config[OCF_IO_CLASS_MAX];
 };
 
@@ -890,7 +896,7 @@ struct ocf_mngt_io_classes_config {
  * @retval Non-zero Error occurred and configuration not been set
  */
 int ocf_mngt_cache_io_classes_configure(ocf_cache_t cache,
-		const struct ocf_mngt_io_classes_config *cfg);
+										const struct ocf_mngt_io_classes_config *cfg);
 
 /**
  * @brief Asociate new UUID value with given core
@@ -960,7 +966,7 @@ int ocf_mngt_core_set_seq_cutoff_threshold(ocf_core_t core, uint32_t thresh);
  * @retval Non-zero Error occured and threshold hasn't been updated
  */
 int ocf_mngt_core_set_seq_cutoff_threshold_all(ocf_cache_t cache,
-		uint32_t thresh);
+											   uint32_t thresh);
 
 /**
  * @brief Get core sequential cutoff threshold
@@ -986,7 +992,7 @@ int ocf_mngt_core_get_seq_cutoff_threshold(ocf_core_t core, uint32_t *thresh);
  * @retval Non-zero Error occured and policy hasn't been updated
  */
 int ocf_mngt_core_set_seq_cutoff_policy(ocf_core_t core,
-		ocf_seq_cutoff_policy policy);
+										ocf_seq_cutoff_policy policy);
 
 /**
  * @brief Set sequential cutoff policy for all cores in cache
@@ -1001,7 +1007,7 @@ int ocf_mngt_core_set_seq_cutoff_policy(ocf_core_t core,
  * @retval Non-zero Error occured and policy hasn't been updated
  */
 int ocf_mngt_core_set_seq_cutoff_policy_all(ocf_cache_t cache,
-		ocf_seq_cutoff_policy policy);
+											ocf_seq_cutoff_policy policy);
 
 /**
  * @brief Get core sequential cutoff policy
@@ -1013,7 +1019,7 @@ int ocf_mngt_core_set_seq_cutoff_policy_all(ocf_cache_t cache,
  * @retval Non-zero Error occured
  */
 int ocf_mngt_core_get_seq_cutoff_policy(ocf_core_t core,
-		ocf_seq_cutoff_policy *policy);
+										ocf_seq_cutoff_policy *policy);
 
 /**
  * @brief Set cache fallback Pass Through error threshold
@@ -1025,7 +1031,7 @@ int ocf_mngt_core_get_seq_cutoff_policy(ocf_core_t core,
  * @retval Non-zero Error occurred
  */
 int ocf_mngt_cache_set_fallback_pt_error_threshold(ocf_cache_t cache,
-		uint32_t threshold);
+												   uint32_t threshold);
 
 /**
  * @brief Get cache fallback Pass Through error threshold
@@ -1037,7 +1043,7 @@ int ocf_mngt_cache_set_fallback_pt_error_threshold(ocf_cache_t cache,
  * @retval Non-zero Error occurred
  */
 int ocf_mngt_cache_get_fallback_pt_error_threshold(ocf_cache_t cache,
-		uint32_t *threshold);
+												   uint32_t *threshold);
 
 /**
  * @brief Reset cache fallback Pass Through error counter
@@ -1080,7 +1086,7 @@ int ocf_mngt_core_pool_add(ocf_ctx_t ctx, ocf_uuid_t uuid, uint8_t type);
  * @retval NULL Not found object with that id
  */
 ocf_volume_t ocf_mngt_core_pool_lookup(ocf_ctx_t ctx, ocf_uuid_t uuid,
-		ocf_volume_type_t type);
+									   ocf_volume_type_t type);
 /**
  * @brief Iterate over all object in pool and call visitor callback
  *
@@ -1092,7 +1098,7 @@ ocf_volume_t ocf_mngt_core_pool_lookup(ocf_ctx_t ctx, ocf_uuid_t uuid,
  * @retval NULL Not found object with that id
  */
 int ocf_mngt_core_pool_visit(ocf_ctx_t ctx,
-		int (*visitor)(ocf_uuid_t, void *), void *visitor_ctx);
+							 int (*visitor)(ocf_uuid_t, void *), void *visitor_ctx);
 
 /**
  * @brief Remove volume from pool
@@ -1105,12 +1111,14 @@ int ocf_mngt_core_pool_visit(ocf_ctx_t ctx,
  */
 void ocf_mngt_core_pool_remove(ocf_ctx_t ctx, ocf_volume_t volume);
 
-
 /*========== [Orthus FLAG BEGIN] ==========*/
+
+/** Global flag to control which monitor to use */
+extern bool USING_NETCAS_SPLIT;
 
 /** Start error codes. */
 #define MF_MONITOR_START_ERR_CACHE_STAT 13
-#define MF_MONITOR_START_ERR_CORE_STAT  14
+#define MF_MONITOR_START_ERR_CORE_STAT 14
 #define MF_MONITOR_START_ERR_THREAD_RUN 15
 
 /**
@@ -1122,6 +1130,16 @@ int ocf_mngt_mf_monitor_start(ocf_core_t core);
  * For the context to gracefully stop the monitor thread.
  */
 void ocf_mngt_mf_monitor_stop(void);
+
+/**
+ * Setup netCAS split ratio monitoring and start the monitor thread.
+ */
+int netcas_mngt_split_monitor_start(ocf_core_t core);
+
+/**
+ * For the context to gracefully stop the netCAS split monitor thread.
+ */
+void netcas_mngt_split_monitor_stop(void);
 
 /*========== [Orthus FLAG END] ==========*/
 

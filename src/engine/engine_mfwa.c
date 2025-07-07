@@ -27,9 +27,7 @@
 #include "engine_mfwa.h"
 #include "mf_monitor.h"
 
-
 #define OCF_ENGINE_DEBUG_IO_NAME "mfwa"
-
 
 /**
  * These two switches should be controlled by a monitor, but for
@@ -48,11 +46,10 @@ static inline bool load_admit_allow(void)
     unsigned prob;
 
     get_random_bytes(&rand, sizeof(int));
-    prob = ((unsigned) (rand % 10000)) % 10000;
+    prob = ((unsigned)(rand % 10000)) % 10000;
 
     return prob <= load_admit;
 }
-
 
 /**
  * Below are MFC with write-around - read implementation.
@@ -70,15 +67,18 @@ static void _ocf_read_mfwa_to_cache_cmpl(struct ocf_request *req, int error)
      * request. Also, complete original request only if this is the last
      * sub-request to complete
      */
-    if (env_atomic_dec_return(&req->req_remaining) == 0) {
+    if (env_atomic_dec_return(&req->req_remaining) == 0)
+    {
         OCF_DEBUG_RQ(req, "TO_CACHE completion");
 
         /** If error, fallback to PT. */
-        if (req->error) {
+        if (req->error)
+        {
             ocf_core_stats_cache_error_update(req->core, OCF_READ);
             ocf_engine_push_req_front_pt(req);
-        
-        } else {
+        }
+        else
+        {
             ocf_req_unlock(req);
             req->complete(req, req->error);
             ocf_req_put(req);
@@ -108,14 +108,16 @@ static void _ocf_read_mfwa_to_core_cmpl_do_promote(struct ocf_request *req,
      * request. Also, complete original request only if this is the last
      * sub-request to complete.
      */
-    if (env_atomic_dec_return(&req->req_remaining) == 0) {
+    if (env_atomic_dec_return(&req->req_remaining) == 0)
+    {
         OCF_DEBUG_RQ(req, "TO_CORE completion");
 
         /**
          * If error, do not submit this request to backfill thread.
          * Stop it here.
          */
-        if (req->error) {
+        if (req->error)
+        {
             req->complete(req, req->error);
 
             req->info.core_error = 1;
@@ -154,14 +156,16 @@ static void _ocf_read_mfwa_to_core_cmpl_no_promote(struct ocf_request *req,
      * request. Also, complete original request only if this is the last
      * sub-request to complete.
      */
-    if (env_atomic_dec_return(&req->req_remaining) == 0) {
+    if (env_atomic_dec_return(&req->req_remaining) == 0)
+    {
         OCF_DEBUG_RQ(req, "TO_CORE completion");
 
         /**
          * If error, do not submit this request to backfill thread.
          * Stop it here.
          */
-        if (req->error) {
+        if (req->error)
+        {
             req->complete(req, req->error);
 
             req->info.core_error = 1;
@@ -195,16 +199,19 @@ static inline void _ocf_read_mfwa_submit_to_core(struct ocf_request *req,
      * purpose. Submit read request to volume and assign
      * `do_promote` version completion callback.
      */
-    if (promote) {
+    if (promote)
+    {
         req->cp_data = ctx_data_alloc(cache->owner,
                                       BYTES_TO_PAGES(req->byte_length));
-        if (!req->cp_data) {
+        if (!req->cp_data)
+        {
             _ocf_read_mfwa_to_core_cmpl_do_promote(req, -OCF_ERR_NO_MEM);
             return;
         }
 
         ret = ctx_data_mlock(cache->owner, req->cp_data);
-        if (ret) {
+        if (ret)
+        {
             _ocf_read_mfwa_to_core_cmpl_do_promote(req, -OCF_ERR_NO_MEM);
             return;
         }
@@ -213,8 +220,10 @@ static inline void _ocf_read_mfwa_submit_to_core(struct ocf_request *req,
         ocf_submit_volume_req(&req->core->volume, req,
                               _ocf_read_mfwa_to_core_cmpl_do_promote);
 
-    /** Not doing promotion. */
-    } else {
+        /** Not doing promotion. */
+    }
+    else
+    {
         ocf_submit_volume_req(&req->core->volume, req,
                               _ocf_read_mfwa_to_core_cmpl_no_promote);
     }
@@ -229,7 +238,8 @@ static int _ocf_read_mfwa_do(struct ocf_request *req)
      * Probably some cache lines are assigned into wrong
      * partition. Need to move it to new one.
      */
-    if (req->info.re_part) {
+    if (req->info.re_part)
+    {
         OCF_DEBUG_RQ(req, "Re-Part");
         ocf_req_hash_lock_wr(req);
         ocf_part_move(req);
@@ -239,40 +249,48 @@ static int _ocf_read_mfwa_do(struct ocf_request *req)
     /**
      * Actual read logic beginning here.
      */
-    if (ocf_engine_is_hit(req)) {
+    if (ocf_engine_is_hit(req))
+    {
 
         /** Hit && p <= load_admit. */
-        if (req->load_admit_allowed) {
+        if (req->load_admit_allowed)
+        {
             OCF_DEBUG_RQ(req, "Submit");
             _ocf_read_mfwa_submit_to_cache(req);
 
-        /** Hit && p > load_admit. */
-        } else {
+            /** Hit && p > load_admit. */
+        }
+        else
+        {
             OCF_DEBUG_RQ(req, "Submit");
             _ocf_read_mfwa_submit_to_core(req, false);
         }
-
-    } else {
+    }
+    else
+    {
 
         /**
          * Miss && data_admit is on.
          * Only in this condition, we allow promotion to cache.
          */
-        if (req->data_admit_allowed) {
-            if (req->map->rd_locked) {  /** Not properly write-locked. */
+        if (req->data_admit_allowed)
+        {
+            if (req->map->rd_locked)
+            { /** Not properly write-locked. */
                 OCF_DEBUG_RQ(req, "Switching to PT");
                 ocf_read_pt_do(req);
                 return 0;
             }
 
-            if (req->info.dirty_any) {  /** Dirty req - should not happen. */
+            if (req->info.dirty_any)
+            { /** Dirty req - should not happen. */
                 ocf_req_hash_lock_rd(req);
                 ocf_engine_clean(req);
                 ocf_req_hash_unlock_rd(req);
                 ocf_req_put(req);
                 return 0;
             }
-            
+
             /** Set valid bits map. */
             ocf_req_hash_lock_rd(req);
             ocf_set_valid_map_info(req);
@@ -281,8 +299,10 @@ static int _ocf_read_mfwa_do(struct ocf_request *req)
             OCF_DEBUG_RQ(req, "Submit");
             _ocf_read_mfwa_submit_to_core(req, true);
 
-        /** Miss && data_admit is off. */
-        } else {
+            /** Miss && data_admit is off. */
+        }
+        else
+        {
             OCF_DEBUG_RQ(req, "Submit");
             _ocf_read_mfwa_submit_to_core(req, false);
         }
@@ -303,12 +323,15 @@ static int _ocf_read_mfwa_do(struct ocf_request *req)
 /** Lock type should match the algorithm logic. */
 static enum ocf_engine_lock_type ocf_read_mfwa_get_lock_type(struct ocf_request *req)
 {
-    if (ocf_engine_is_hit(req)) {
+    if (ocf_engine_is_hit(req))
+    {
         if (req->load_admit_allowed)
             return ocf_engine_lock_read;
         else
             return ocf_engine_lock_none;
-    } else {
+    }
+    else
+    {
         if (req->data_admit_allowed)
             return ocf_engine_lock_write;
         else
@@ -322,9 +345,9 @@ static const struct ocf_io_if _io_if_read_mfwa_resume = {
 };
 
 static const struct ocf_engine_callbacks _read_mfwa_engine_callbacks =
-{
-    .get_lock_type = ocf_read_mfwa_get_lock_type,
-    .resume = ocf_engine_on_resume,
+    {
+        .get_lock_type = ocf_read_mfwa_get_lock_type,
+        .resume = ocf_engine_on_resume,
 };
 
 /**
@@ -346,7 +369,8 @@ int ocf_read_mfwa(struct ocf_request *req)
     ocf_io_start(&req->ioi.io);
 
     /** There are conditions to bypass IO. */
-    if (env_atomic_read(&cache->pending_read_misses_list_blocked)) {
+    if (env_atomic_read(&cache->pending_read_misses_list_blocked))
+    {
         ocf_get_io_if(ocf_cache_mode_pt)->read(req);
         return 0;
     }
@@ -366,21 +390,30 @@ int ocf_read_mfwa(struct ocf_request *req)
 
     lock = ocf_engine_prepare_clines(req, &_read_mfwa_engine_callbacks);
 
-    if (!req->info.mapping_error) {
-        if (lock >= 0) {
-            if (lock != OCF_LOCK_ACQUIRED) {
+    if (!req->info.mapping_error)
+    {
+        if (lock >= 0)
+        {
+            if (lock != OCF_LOCK_ACQUIRED)
+            {
                 /** Lock was not acquired, need to wait for resume */
                 OCF_DEBUG_RQ(req, "NO LOCK");
-            } else {
+            }
+            else
+            {
                 /** Lock was acquired can perform IO. */
                 _ocf_read_mfwa_do(req);
             }
-        } else {
+        }
+        else
+        {
             OCF_DEBUG_RQ(req, "LOCK ERROR %d", lock);
             req->complete(req, lock);
             ocf_req_put(req);
         }
-    } else {
+    }
+    else
+    {
         ocf_req_clear(req);
         ocf_get_io_if(ocf_cache_mode_pt)->read(req);
     }

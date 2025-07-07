@@ -21,23 +21,20 @@
 #include "../ocf_core_priv.h"
 #include "mf_monitor.h"
 
-
 /** Enable kernel verbose logging? */
 static const bool MONITOR_VERBOSE_LOG = true;
-
 
 /** `data_admit` switch, protected by a global rwlock. */
 static bool global_data_admit = true;
 
 /** `load_admit` switch, protected by a global rwlock. */
-static int global_load_admit = 10000;       // 100%.
+static int global_load_admit = 10000; // 100%.
 
 /** Reader-writer lock to protect `data_admit`. */
 static env_rwlock data_admit_lock;
 
 /** Reader-writer lock to protect `load_admit`. */
 static env_rwlock load_admit_lock;
-
 
 /**
  * Set switch value with writer lock.
@@ -61,8 +58,7 @@ monitor_set_load_admit(int load_admit)
 /**
  * For OCF mf policy to query the switch values.
  */
-bool
-monitor_query_data_admit(void)
+bool monitor_query_data_admit(void)
 {
     bool data_admit;
 
@@ -74,8 +70,7 @@ monitor_query_data_admit(void)
 }
 
 // 이 함수를 이용해서, 현재 설정된 load_admit 값을 조회할 수 있음.
-int
-monitor_query_load_admit(void)
+int monitor_query_load_admit(void)
 {
     int load_admit;
 
@@ -85,7 +80,6 @@ monitor_query_load_admit(void)
 
     return 8000;
 }
-
 
 /**
  * Kernel module file operations implementation.
@@ -104,7 +98,8 @@ file_open(const char *path, int flags, int rights)
     filp = filp_open(path, flags, rights);
     set_fs(oldfs);
 
-    if (IS_ERR(filp)) {
+    if (IS_ERR(filp))
+    {
         err = PTR_ERR(filp);
         return NULL;
     }
@@ -134,7 +129,6 @@ file_read(struct file *file, unsigned long long offset, unsigned char *data,
     return ret;
 }
 
-
 /**
  * Kernel timing utility.
  */
@@ -153,10 +147,9 @@ _get_cur_time_ms(void)
     return cur_time_ms;
 }
 
-
 /** For block device throughput measurement. */
 static const char *CACHE_STAT_FILENAME = "/sys/block/ram1/stat";
-static const char *CORE_STAT_FILENAME  = "/sys/block/nvme1n1/stat";
+static const char *CORE_STAT_FILENAME = "/sys/block/nvme1n1/stat";
 
 static struct file *cache_stat;
 static struct file *core_stat;
@@ -164,23 +157,22 @@ static struct file *core_stat;
 static char cache_stat_buf[1024];
 static char core_stat_buf[1024];
 
-
 /*========== Multi-factor algorithm logic BEGIN ==========*/
 
 /** Do not attempt tuning when miss ratio is higher than X. */
-static const int MISS_RATIO_TUNING_BOUND = 2000;    // 20%.
+static const int MISS_RATIO_TUNING_BOUND = 2000; // 20%.
 
 /** Consider cache is stable if miss ratio within OLD_RATIO +- X. */
-static const int WAIT_STABLE_THRESHOLD = 1;         // 0.01%.
+static const int WAIT_STABLE_THRESHOLD = 1; // 0.01%.
 
 /** Sleep X microseconds when detecting cache stability. */
 static const int WAIT_STABLE_SLEEP_INTERVAL_US = 1000000;
 
 /** Consider workload change when miss ratio > BASE_RATIO + X. */
-static const int WORKLOAD_CHANGE_THRESHOLD = 2000;  // 20%.
+static const int WORKLOAD_CHANGE_THRESHOLD = 2000; // 20%.
 
 /** `load_admit` tuning step size. */
-static const int LOAD_ADMIT_TUNING_STEP = 100;      // 1%.
+static const int LOAD_ADMIT_TUNING_STEP = 100; // 1%.
 
 /** Measure throughput for a `load_admit` value for X microseconds. */
 static const int MEASURE_THROUGHPUT_INTERVAL_US = 5000;
@@ -199,7 +191,8 @@ _get_miss_ratio(ocf_core_t core)
     uint32_t i;
     int miss_ratio = 10000;
 
-    for (i = 0; i != OCF_IO_CLASS_MAX; ++i) {
+    for (i = 0; i != OCF_IO_CLASS_MAX; ++i)
+    {
         curr = &core->counters->part_counters[i].read_reqs;
 
         misses += env_atomic64_read(&curr->partial_miss);
@@ -232,8 +225,8 @@ monitor_measure_throughput(int load_admit)
 {
     int64_t cache_read_sectors_old = 0, cache_write_sectors_old = 0,
             cache_read_sectors_new = 0, cache_write_sectors_new = 0,
-            core_read_sectors_old  = 0, core_write_sectors_old  = 0,
-            core_read_sectors_new  = 0, core_write_sectors_new  = 0;
+            core_read_sectors_old = 0, core_write_sectors_old = 0,
+            core_read_sectors_new = 0, core_write_sectors_new = 0;
     int64_t old_time_ms = 0, new_time_ms = 0;
     int64_t throughput = 0;
 
@@ -243,14 +236,15 @@ monitor_measure_throughput(int load_admit)
 
     /** Record old counters. */
     ENV_BUG_ON(file_read(cache_stat, 0, cache_stat_buf, 1024) <= 0);
-    ENV_BUG_ON(file_read(core_stat,  0, core_stat_buf,  1024) <= 0);
+    ENV_BUG_ON(file_read(core_stat, 0, core_stat_buf, 1024) <= 0);
 
     old_time_ms = _get_cur_time_ms();
 
     cache_stat_tmp = cache_stat_buf;
     while (*cache_stat_tmp == ' ')
         cache_stat_tmp++;
-    for (count = 0; count < 7; ++count) {
+    for (count = 0; count < 7; ++count)
+    {
         cache_counter = cache_stat_tmp;
 
         while (*cache_stat_tmp != ' ' && *cache_stat_tmp != '\0')
@@ -261,10 +255,13 @@ monitor_measure_throughput(int load_admit)
         while (*cache_stat_tmp == ' ')
             cache_stat_tmp++;
 
-        if (count == 2) {
+        if (count == 2)
+        {
             if (kstrtoll(cache_counter, 10, &cache_read_sectors_old))
                 return -1;
-        } else if (count == 6) {
+        }
+        else if (count == 6)
+        {
             if (kstrtoll(cache_counter, 10, &cache_write_sectors_old))
                 return -1;
         }
@@ -273,7 +270,8 @@ monitor_measure_throughput(int load_admit)
     core_stat_tmp = core_stat_buf;
     while (*core_stat_tmp == ' ')
         core_stat_tmp++;
-    for (count = 0; count < 7; ++count) {
+    for (count = 0; count < 7; ++count)
+    {
         core_counter = core_stat_tmp;
 
         while (*core_stat_tmp != ' ' && *core_stat_tmp != '\0')
@@ -284,10 +282,13 @@ monitor_measure_throughput(int load_admit)
         while (*core_stat_tmp == ' ')
             core_stat_tmp++;
 
-        if (count == 2) {
+        if (count == 2)
+        {
             if (kstrtoll(core_counter, 10, &core_read_sectors_old))
                 return -1;
-        } else if (count == 6) {
+        }
+        else if (count == 6)
+        {
             if (kstrtoll(core_counter, 10, &core_write_sectors_old))
                 return -1;
         }
@@ -300,14 +301,15 @@ monitor_measure_throughput(int load_admit)
 
     /** Get new counters and calculate the throughputs. */
     ENV_BUG_ON(file_read(cache_stat, 0, cache_stat_buf, 1024) <= 0);
-    ENV_BUG_ON(file_read(core_stat,  0, core_stat_buf,  1024) <= 0);
+    ENV_BUG_ON(file_read(core_stat, 0, core_stat_buf, 1024) <= 0);
 
     new_time_ms = _get_cur_time_ms();
 
     cache_stat_tmp = cache_stat_buf;
     while (*cache_stat_tmp == ' ')
         cache_stat_tmp++;
-    for (count = 0; count < 7; ++count) {
+    for (count = 0; count < 7; ++count)
+    {
         cache_counter = cache_stat_tmp;
 
         while (*cache_stat_tmp != ' ' && *cache_stat_tmp != '\0')
@@ -318,10 +320,13 @@ monitor_measure_throughput(int load_admit)
         while (*cache_stat_tmp == ' ')
             cache_stat_tmp++;
 
-        if (count == 2) {
+        if (count == 2)
+        {
             if (kstrtoll(cache_counter, 10, &cache_read_sectors_new))
                 return -1;
-        } else if (count == 6) {
+        }
+        else if (count == 6)
+        {
             if (kstrtoll(cache_counter, 10, &cache_write_sectors_new))
                 return -1;
         }
@@ -330,7 +335,8 @@ monitor_measure_throughput(int load_admit)
     core_stat_tmp = core_stat_buf;
     while (*core_stat_tmp == ' ')
         core_stat_tmp++;
-    for (count = 0; count < 7; ++count) {
+    for (count = 0; count < 7; ++count)
+    {
         core_counter = core_stat_tmp;
 
         while (*core_stat_tmp != ' ' && *core_stat_tmp != '\0')
@@ -341,24 +347,22 @@ monitor_measure_throughput(int load_admit)
         while (*core_stat_tmp == ' ')
             core_stat_tmp++;
 
-        if (count == 2) {
+        if (count == 2)
+        {
             if (kstrtoll(core_counter, 10, &core_read_sectors_new))
                 return -1;
-        } else if (count == 6) {
+        }
+        else if (count == 6)
+        {
             if (kstrtoll(core_counter, 10, &core_write_sectors_new))
                 return -1;
         }
     }
 
-    if (new_time_ms > old_time_ms) {
-        throughput += (int64_t) (500
-                      * ((cache_read_sectors_new - cache_read_sectors_old)
-                      + (cache_write_sectors_new - cache_write_sectors_old)))
-                      / (new_time_ms  - old_time_ms);
-        throughput += (int64_t) (500
-                      * ((core_read_sectors_new - core_read_sectors_old)
-                      + (core_write_sectors_new - core_write_sectors_old)))
-                      / (new_time_ms  - old_time_ms);
+    if (new_time_ms > old_time_ms)
+    {
+        throughput += (int64_t)(500 * ((cache_read_sectors_new - cache_read_sectors_old) + (cache_write_sectors_new - cache_write_sectors_old))) / (new_time_ms - old_time_ms);
+        throughput += (int64_t)(500 * ((core_read_sectors_new - core_read_sectors_old) + (core_write_sectors_new - core_write_sectors_old))) / (new_time_ms - old_time_ms);
     }
 
     return throughput;
@@ -373,19 +377,19 @@ monitor_wait_stable(ocf_core_t core)
     int last_miss_ratio = 10000;
     int miss_ratio = _get_miss_ratio(core);
 
-    while (miss_ratio > MISS_RATIO_TUNING_BOUND
-           || miss_ratio < last_miss_ratio - WAIT_STABLE_THRESHOLD
-           || miss_ratio > last_miss_ratio + WAIT_STABLE_THRESHOLD) {
+    while (miss_ratio > MISS_RATIO_TUNING_BOUND || miss_ratio < last_miss_ratio - WAIT_STABLE_THRESHOLD || miss_ratio > last_miss_ratio + WAIT_STABLE_THRESHOLD)
+    {
         if (kthread_should_stop())
             return 10000;
 
         usleep_range(WAIT_STABLE_SLEEP_INTERVAL_US,
                      WAIT_STABLE_SLEEP_INTERVAL_US + 1);
-        
+
         last_miss_ratio = miss_ratio;
         miss_ratio = _get_miss_ratio(core);
 
-        if (MONITOR_VERBOSE_LOG) {
+        if (MONITOR_VERBOSE_LOG)
+        {
             printk(KERN_ALERT "MONITOR: (wait) miss ratio = %-5d -> %-5d\n",
                    last_miss_ratio, miss_ratio);
         }
@@ -406,7 +410,8 @@ monitor_tune_load_admit(int base_miss_ratio, ocf_core_t core)
     int chances = NOT_QUIT_ON_100_CHANCES;
     int64_t iteration = 0;
 
-    while (1) {
+    while (1)
+    {
         if (kthread_should_stop())
             return;
 
@@ -414,7 +419,8 @@ monitor_tune_load_admit(int base_miss_ratio, ocf_core_t core)
 
         /** Get middle ratio (current `load_admit`) throughput. */
         la2 = monitor_query_load_admit();
-        if (MONITOR_VERBOSE_LOG && iteration % 100 == 1) {
+        if (MONITOR_VERBOSE_LOG && iteration % 100 == 1)
+        {
             printk(KERN_ALERT "MONITOR: (tune) iter #%lld: load_admit = %-5d\n",
                    iteration, la2);
         }
@@ -426,21 +432,22 @@ monitor_tune_load_admit(int base_miss_ratio, ocf_core_t core)
 
         /** Get lower ratio throughput. */
         la1 = la2 - LOAD_ADMIT_TUNING_STEP;
-        tp1 = la1 < 0     ? -1 : monitor_measure_throughput(la1);
+        tp1 = la1 < 0 ? -1 : monitor_measure_throughput(la1);
 
-        monitor_set_load_admit(la2);    /** Recover. */
+        monitor_set_load_admit(la2); /** Recover. */
 
         /** Slope following loop. */
-        while (1) {
+        while (1)
+        {
             /**
              * Workload change check:
              * If detected workload change, quit and re-optimize.
              */
             int miss_ratio = _get_miss_ratio(core);
-            if (miss_ratio > MISS_RATIO_TUNING_BOUND
-                || miss_ratio > base_miss_ratio + WORKLOAD_CHANGE_THRESHOLD
-                || miss_ratio < base_miss_ratio - WORKLOAD_CHANGE_THRESHOLD) {
-                if (MONITOR_VERBOSE_LOG) {
+            if (miss_ratio > MISS_RATIO_TUNING_BOUND || miss_ratio > base_miss_ratio + WORKLOAD_CHANGE_THRESHOLD || miss_ratio < base_miss_ratio - WORKLOAD_CHANGE_THRESHOLD)
+            {
+                if (MONITOR_VERBOSE_LOG)
+                {
                     printk(KERN_ALERT "MONITOR: (tune) miss ratio changed too"
                                       " far, quit\n");
                 }
@@ -453,7 +460,8 @@ monitor_tune_load_admit(int base_miss_ratio, ocf_core_t core)
             /**
              * Middle ratio yields best throughput, goto intensity check.
              */
-            if (tp2 >= tp1 && tp2 >= tp3) {
+            if (tp2 >= tp1 && tp2 >= tp3)
+            {
                 monitor_set_load_admit(la2);
                 break;
             }
@@ -462,13 +470,19 @@ monitor_tune_load_admit(int base_miss_ratio, ocf_core_t core)
              * Higher ratio yields best throughput, then shift to higher
              * `load_admit` value.
              */
-            if (tp3 >= tp1 && tp3 >= tp2) {
-                if (la3 >= 10000) {
+            if (tp3 >= tp1 && tp3 >= tp2)
+            {
+                if (la3 >= 10000)
+                {
                     monitor_set_load_admit(10000);
                     break;
-                } else {
-                    la1 = la2; tp1 = tp2;
-                    la2 = la3; tp2 = tp3;
+                }
+                else
+                {
+                    la1 = la2;
+                    tp1 = tp2;
+                    la2 = la3;
+                    tp2 = tp3;
                     la3 = la3 + LOAD_ADMIT_TUNING_STEP;
                     tp3 = la3 > 10000 ? -1 : monitor_measure_throughput(la3);
                     continue;
@@ -479,15 +493,21 @@ monitor_tune_load_admit(int base_miss_ratio, ocf_core_t core)
              * Lower ratio yields best throughput, then shift to lower
              * `load_admit` value.
              */
-            if (tp1 >= tp2 && tp1 >= tp3) {
-                if (la1 <= 0) {
+            if (tp1 >= tp2 && tp1 >= tp3)
+            {
+                if (la1 <= 0)
+                {
                     monitor_set_load_admit(0);
                     break;
-                } else {
-                    la3 = la2; tp3 = tp2;
-                    la2 = la1; tp2 = tp1;
+                }
+                else
+                {
+                    la3 = la2;
+                    tp3 = tp2;
+                    la2 = la1;
+                    tp2 = tp1;
                     la1 = la1 - LOAD_ADMIT_TUNING_STEP;
-                    tp1 = la1 < 0     ? -1 : monitor_measure_throughput(la1);
+                    tp1 = la1 < 0 ? -1 : monitor_measure_throughput(la1);
                     continue;
                 }
             }
@@ -498,12 +518,17 @@ monitor_tune_load_admit(int base_miss_ratio, ocf_core_t core)
          * If client's request intensity cannot fill cache bandwidth, then fall
          * back to classic caching.
          */
-        if (monitor_query_load_admit() == 10000) {
-            if (chances > 0) {      /** Give a second chance. */
+        if (monitor_query_load_admit() == 10000)
+        {
+            if (chances > 0)
+            { /** Give a second chance. */
                 chances--;
                 continue;
-            } else {
-                if (MONITOR_VERBOSE_LOG) {
+            }
+            else
+            {
+                if (MONITOR_VERBOSE_LOG)
+                {
                     printk(KERN_ALERT "MONITOR: (tune) load_admit stays 100%%, "
                                       "quit\n");
                 }
@@ -521,10 +546,12 @@ monitor_func(void *core_ptr)
 {
     ocf_core_t core = core_ptr;
 
-    while (1) {
+    while (1)
+    {
         int base_miss_ratio;
 
-        if (kthread_should_stop()) {
+        if (kthread_should_stop())
+        {
             env_rwlock_destroy(&data_admit_lock);
             env_rwlock_destroy(&load_admit_lock);
 
@@ -550,7 +577,8 @@ monitor_func(void *core_ptr)
         if (MONITOR_VERBOSE_LOG)
             printk(KERN_ALERT "MONITOR: (wait) cache is stable\n");
 
-        if (kthread_should_stop()) {
+        if (kthread_should_stop())
+        {
             env_rwlock_destroy(&data_admit_lock);
             env_rwlock_destroy(&load_admit_lock);
 
@@ -562,7 +590,8 @@ monitor_func(void *core_ptr)
 
         /** Turn off `data_admit` and start `load_admit` tuning. */
         monitor_set_data_admit(false);
-        if (MONITOR_VERBOSE_LOG) {
+        if (MONITOR_VERBOSE_LOG)
+        {
             printk(KERN_ALERT "MONITOR: (tune) turn off data_admit & start "
                               "tuning\n");
         }
@@ -579,10 +608,9 @@ static struct task_struct *monitor_thread_st = NULL;
 /**
  * Setup multi-factor switches and sart the monitor thread.
  */
-int
-ocf_mngt_mf_monitor_start(ocf_core_t core)
+int ocf_mngt_mf_monitor_start(ocf_core_t core)
 {
-    if (monitor_thread_st != NULL)  // Already started.
+    if (monitor_thread_st != NULL) // Already started.
         return 0;
 
     global_data_admit = true;
@@ -595,19 +623,21 @@ ocf_mngt_mf_monitor_start(ocf_core_t core)
 
     /** Open block device stat files. */
     cache_stat = file_open(CACHE_STAT_FILENAME, O_RDONLY, 0);
-    if (cache_stat < 0) {
+    if (cache_stat < 0)
+    {
         OCF_DEBUG_LOG(ocf_core_get_cache(core), "Unable to open cache stat");
         return MF_MONITOR_START_ERR_CACHE_STAT;
     }
 
     core_stat = file_open(CORE_STAT_FILENAME, O_RDONLY, 0);
-    if (core_stat < 0) {
+    if (core_stat < 0)
+    {
         OCF_DEBUG_LOG(ocf_core_get_cache(core), "Unable to open core stat");
         return MF_MONITOR_START_ERR_CORE_STAT;
     }
 
     /** Create the monitor thread. */
-    monitor_thread_st = kthread_run(monitor_func, (void *) core,
+    monitor_thread_st = kthread_run(monitor_func, (void *)core,
                                     "mf_monitor_thread");
     if (monitor_thread_st == NULL)
         return MF_MONITOR_START_ERR_THREAD_RUN;
@@ -620,10 +650,10 @@ ocf_mngt_mf_monitor_start(ocf_core_t core)
 /**
  * For the context to gracefully stop the monitor thread.
  */
-void
-ocf_mngt_mf_monitor_stop(void)
+void ocf_mngt_mf_monitor_stop(void)
 {
-    if (monitor_thread_st != NULL) {    // Only if started.
+    if (monitor_thread_st != NULL)
+    { // Only if started.
         kthread_stop(monitor_thread_st);
         printk(KERN_ALERT "MONITOR: Thread %d stop signaled\n",
                monitor_thread_st->pid);
