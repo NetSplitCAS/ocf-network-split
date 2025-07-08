@@ -212,44 +212,45 @@ struct rdma_metrics read_rdma_metrics(void)
     return metrics;
 }
 
-// struct performance_metrics measure_performance(struct ocf_request *req, uint64_t elapsed_time)
-// {
-//     struct performance_metrics metrics = {0, 0, 0, 0};
-
-//     // 1. Measure IOPS
-//     metrics.opencas_iops = measure_iops_using_opencas_stats(req, elapsed_time);
-//     metrics.disk_iops = measure_iops_using_disk_stats(elapsed_time);
-
-//     // 2. Read RDMA metrics
-//     struct rdma_metrics rdma_metrics = read_rdma_metrics();
-//     metrics.rdma_latency = rdma_metrics.latency;
-//     metrics.rdma_throughput = rdma_metrics.throughput;
-
-//     // Log results
-//     // printk(KERN_INFO "Performance metrics - RDMA: %llu/%llu, IOPS: %llu/%llu",
-//     //        metrics.rdma_latency, metrics.rdma_throughput,
-//     //        metrics.opencas_iops, metrics.disk_iops);
-
-//     return metrics;
-// }
-
-struct rdma_metrics measure_performance()
+struct performance_metrics measure_performance(uint64_t elapsed_time)
 {
-    // struct performance_metrics metrics = {0, 0, 0, 0};
+    struct performance_metrics metrics = {0, 0, 0};
+    struct rdma_metrics rdma_metrics = {0, 0};
 
-    // // 1. Measure IOPS
+    // 1. Measure IOPS
     // metrics.opencas_iops = measure_iops_using_opencas_stats(req, elapsed_time);
-    // metrics.disk_iops = measure_iops_using_disk_stats(elapsed_time);
+    metrics.iops = measure_iops_using_disk_stats(elapsed_time);
 
     // 2. Read RDMA metrics
-    struct rdma_metrics current_rdma_metrics = read_rdma_metrics();
-    // metrics.rdma_latency = rdma_metrics.latency;
-    // metrics.rdma_throughput = rdma_metrics.throughput;
+    rdma_metrics = read_rdma_metrics();
+    metrics.rdma_latency = rdma_metrics.latency;
+    metrics.rdma_throughput = rdma_metrics.throughput;
 
     // Log results
     // printk(KERN_INFO "Performance metrics - RDMA: %llu/%llu, IOPS: %llu/%llu",
     //        metrics.rdma_latency, metrics.rdma_throughput,
     //        metrics.opencas_iops, metrics.disk_iops);
 
-    return current_rdma_metrics;
+    return metrics;
 }
+
+// struct rdma_metrics measure_performance()
+// {
+//     // struct performance_metrics metrics = {0, 0, 0, 0};
+
+//     // // 1. Measure IOPS
+//     // metrics.opencas_iops = measure_iops_using_opencas_stats(req, elapsed_time);
+//     // metrics.disk_iops = measure_iops_using_disk_stats(elapsed_time);
+
+//     // 2. Read RDMA metrics
+//     struct rdma_metrics current_rdma_metrics = read_rdma_metrics();
+//     // metrics.rdma_latency = rdma_metrics.latency;
+//     // metrics.rdma_throughput = rdma_metrics.throughput;
+
+//     // Log results
+//     // printk(KERN_INFO "Performance metrics - RDMA: %llu/%llu, IOPS: %llu/%llu",
+//     //        metrics.rdma_latency, metrics.rdma_throughput,
+//     //        metrics.opencas_iops, metrics.disk_iops);
+
+//     return current_rdma_metrics;
+// }

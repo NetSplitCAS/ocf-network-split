@@ -20,15 +20,14 @@ struct performance_metrics
 {
     uint64_t rdma_latency;
     uint64_t rdma_throughput;
-    uint64_t opencas_iops;
-    uint64_t disk_iops;
+    uint64_t iops;
 };
 
 /* Function declarations */
 uint64_t measure_iops_using_opencas_stats(struct ocf_request *req, uint64_t elapsed_time);
 uint64_t measure_iops_using_disk_stats(uint64_t elapsed_time);
 struct rdma_metrics read_rdma_metrics(void);
-// struct performance_metrics measure_performance(struct ocf_request *req, uint64_t elapsed_time);
-struct rdma_metrics measure_performance(void);
+struct performance_metrics measure_performance(uint64_t elapsed_time);
+// struct rdma_metrics measure_performance(void);
 
 #endif /* __NETCAS_MONITOR_H__ */

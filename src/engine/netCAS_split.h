@@ -13,10 +13,13 @@
 
 /* Constants */
 #define RDMA_WINDOW_SIZE 20
-#define MONITOR_INTERVAL_MS 1000        /* Check every 1 second */
-#define WARMUP_PERIOD_NS 10000000000ULL /* 10 seconds in nanoseconds */
-#define RDMA_THRESHOLD 100              /* Threshold for starting warmup */
-#define CONGESTION_THRESHOLD 90         /* 90% drop threshold for congestion mode */
+#define MONITOR_INTERVAL_MS 100        /* Check every 0.1 second */
+#define LOG_INTERVAL_MS 1000           /* Log every 1 second */
+#define WARMUP_PERIOD_NS 3000000000ULL /* 3 seconds in nanoseconds */
+#define RDMA_THRESHOLD 100             /* Threshold for starting warmup */
+#define CONGESTION_THRESHOLD 90        /* 9.0% drop threshold for congestion mode */
+#define RDMA_LATENCY_THRESHOLD 1000000 /* 1ms in nanoseconds */
+#define IOPS_THRESHOLD 1000            /* 1000 IOPS */
 
 /* Scale constants for split ratio (0-10000 where 10000 = 100%) */
 #define SPLIT_RATIO_SCALE 10000 /* Scale factor for split ratio */
